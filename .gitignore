@@ -1,0 +1,22 @@
+# MicroPython firmware binaries (downloaded, not source — see firmware/.gitkeep)
+firmware/*.bin
+
+# Vendored flashing tool (installed via `pip install -r requirements.txt`)
+esptool.exe
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Local tooling / editor
+.claude/
+.vscode/
+.idea/
+*.swp
+
+# OS
+Thumbs.db
+.DS_Store

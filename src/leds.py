@@ -19,7 +19,7 @@ NUM_LEDS = 44
 LED_PIN  = 10
 
 # Physical indices of the two "eye" LEDs on the bat badge.
-EYES = (32, 36)
+EYES = (29, 31)
 # Every other LED, in ascending physical order — the animated "body" of the strip.
 # Patterns address the body by logical position (0..BODY_COUNT-1) so they never
 # accidentally colour an eye.

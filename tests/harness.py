@@ -11,6 +11,10 @@ import os
 import sys
 import types
 
+# Don't litter the source tree with __pycache__ when running tests on the host —
+# those .pyc files are useless on the device and were getting deployed by flash.py.
+sys.dont_write_bytecode = True
+
 _SRC = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src"))
 if _SRC not in sys.path:
     sys.path.insert(0, _SRC)

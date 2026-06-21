@@ -10,6 +10,8 @@ Usage:
 """
 
 import argparse
+import glob
+import os
 import platform
 import subprocess
 import sys
@@ -63,10 +65,20 @@ def flash_firmware(port: str, baud: int, firmware_path: str) -> None:
     ])
 
 
+def src_files() -> list:
+    """Python source files under src/ to deploy — never __pycache__/build junk.
+
+    Anchored to this script's directory so it works regardless of CWD.
+    """
+    here = os.path.dirname(os.path.abspath(__file__))
+    return sorted(glob.glob(os.path.join(here, "src", "*.py")))
+
+
 def deploy_src(port: str) -> None:
-    """Copy src/ tree to the device filesystem root using mpremote."""
-    print(f"\n--- Deploying src/ to device on {port} ---")
-    run([sys.executable, "-m", "mpremote", "connect", port, "cp", "-r", "src/.", ":"])
+    """Copy the src/ Python sources to the device filesystem root using mpremote."""
+    files = src_files()
+    print(f"\n--- Deploying {len(files)} source file(s) to device on {port} ---")
+    run([sys.executable, "-m", "mpremote", "connect", port, "cp"] + files + [":"])
 
 
 def main() -> None:

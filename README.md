@@ -163,8 +163,11 @@ The `leds` and `patterns` modules are importable on a host PC (the MicroPython
 hardware imports are deferred), so their logic is covered by plain `unittest`:
 
 ```bash
-python -m unittest discover -s tests
+python -B -m unittest discover -s tests
 ```
+
+(`-B` keeps the source tree free of `__pycache__`. `flash.py --deploy` only ever
+ships `src/*.py`, so stray bytecode never reaches the device regardless.)
 
 ---
 

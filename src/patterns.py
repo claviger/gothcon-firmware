@@ -32,6 +32,7 @@ BREATHE_LEVELS  = 10     # brightness steps from off to full in one breath
 TWINKLE_STEP_MS = 90
 TWINKLE_DECAY   = 2      # per-step fade applied to each lit channel (0–10 scale)
 TWINKLE_SPAWN   = 2      # max new twinkles spawned per step
+TEST_STEP_MS    = 1000   # TEMP test-pattern: dwell time per LED
 
 EYE_WHITE = (10, 10, 10)
 
@@ -61,6 +62,41 @@ def _pulse(t_ms, period, lo, hi):
 # ---------------------------------------------------------------------------
 # Pattern factories — each owns a private state dict.
 # ---------------------------------------------------------------------------
+
+# >>> TEMPORARY DIAGNOSTIC STUB — REMOVE ME <<<
+# Walks every *physical* LED (counting 1..NUM_LEDS) one at a time, lit white for
+# TEST_STEP_MS, looping forever. Used to identify the physical indices of the two
+# "bat eye" LEDs. Addresses raw physical indices (leds.set_one), NOT the body
+# abstraction, so the eyes are lit too. Each step prints the index to serial so
+# it can be matched to the LED that lights. Delete this factory, its registry
+# entry, and TEST_STEP_MS once the eye indices are known.
+def _make_test_pattern():
+    st = {"idx": 0, "last_ms": None}
+
+    def _show(i):
+        leds.clear()
+        leds.set_one(i, 10, 10, 10)
+        leds.write()
+        print("[test] physical index {}  (LED #{} of {})".format(
+            i, i + 1, leds.NUM_LEDS))
+
+    def start(colors):
+        st["idx"] = 0
+        st["last_ms"] = None
+        _show(0)
+
+    def tick(colors, t_ms):
+        if st["last_ms"] is None:
+            st["last_ms"] = t_ms
+            return
+        if utime.ticks_diff(t_ms, st["last_ms"]) >= TEST_STEP_MS:
+            st["last_ms"] = t_ms
+            st["idx"] = (st["idx"] + 1) % leds.NUM_LEDS
+            _show(st["idx"])
+
+    return {"name": "test pattern", "start": start, "tick": tick}
+# >>> END TEMPORARY DIAGNOSTIC STUB <<<
+
 
 def _make_solid():
     """All body LEDs hold the first palette colour; static. Eyes steady white."""
@@ -258,6 +294,7 @@ def _make_breathe():
 # ---------------------------------------------------------------------------
 
 _PATTERNS = [
+    _make_test_pattern(),   # TEMP: index 0 = power-on default while finding eye indices — REMOVE ME
     _make_solid(),
     _make_chase(),
     _make_twinkle(),

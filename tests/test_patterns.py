@@ -8,8 +8,11 @@ from harness import FakeStrip
 import leds
 import patterns
 
-# Pattern indices (per spec order)
-SOLID, CHASE, TWINKLE, WASH, SWAP, BREATHE = range(6)
+# Pattern indices (per spec order).
+# TEST_PATTERN is a TEMPORARY diagnostic stub at index 0 (power-on default) used
+# to identify the physical eye indices; remove it (and shift back to range(6))
+# once the correct eye LEDs are known.
+TEST_PATTERN, SOLID, CHASE, TWINKLE, WASH, SWAP, BREATHE = range(7)
 
 
 def scaled(c):
@@ -35,7 +38,8 @@ class _Base(unittest.TestCase):
 
 class TestApi(_Base):
     def test_pattern_count_and_names(self):
-        self.assertEqual(patterns.pattern_count(), 6)
+        self.assertEqual(patterns.pattern_count(), 7)   # 6 + TEMP test pattern
+        self.assertEqual(patterns.pattern_name(TEST_PATTERN), "test pattern")
         self.assertEqual(patterns.pattern_name(SOLID), "solid")
         self.assertEqual(patterns.pattern_name(BREATHE), "breathe")
 
@@ -147,6 +151,41 @@ class TestTwinkle(_Base):
             lit_counts.append(lit)
         self.assertGreaterEqual(max(lit_counts), 1)                    # something twinkles
         self.assertLessEqual(max(lit_counts), int(leds.BODY_COUNT * 0.4))  # majority off
+
+
+class TestTestPattern(_Base):
+    """TEMP diagnostic stub — lights each physical LED (1..44) white in turn."""
+
+    def test_lights_first_physical_led_only(self):
+        patterns.activate(TEST_PATTERN, 0)
+        white = scaled((10, 10, 10))
+        self.assertEqual(leds._np[0], white)
+        for i in range(1, leds.NUM_LEDS):
+            self.assertEqual(leds._np[i], (0, 0, 0))
+
+    def test_advances_one_physical_led_per_step(self):
+        patterns.activate(TEST_PATTERN, 0)
+        white = scaled((10, 10, 10))
+        patterns.tick(TEST_PATTERN, 0, 0)                    # init last_ms
+        patterns.tick(TEST_PATTERN, 0, patterns.TEST_STEP_MS)
+        self.assertEqual(leds._np[1], white)
+        self.assertEqual(leds._np[0], (0, 0, 0))
+
+    def test_covers_every_physical_index_including_eyes_then_wraps(self):
+        patterns.activate(TEST_PATTERN, 0)
+        white = scaled((10, 10, 10))
+        lit_order = [0]
+        t = 0
+        patterns.tick(TEST_PATTERN, 0, t)                    # init last_ms
+        for _ in range(leds.NUM_LEDS):
+            t += patterns.TEST_STEP_MS
+            patterns.tick(TEST_PATTERN, 0, t)
+            lit = [i for i in range(leds.NUM_LEDS) if leds._np[i] == white]
+            self.assertEqual(len(lit), 1)                    # exactly one lit
+            lit_order.append(lit[0])
+        # every physical index 0..43 was lit (the eyes are addressed too)
+        self.assertEqual(set(lit_order[:leds.NUM_LEDS]), set(range(leds.NUM_LEDS)))
+        self.assertEqual(lit_order[leds.NUM_LEDS], 0)        # wrapped back to start
 
 
 class TestEyesContract(_Base):

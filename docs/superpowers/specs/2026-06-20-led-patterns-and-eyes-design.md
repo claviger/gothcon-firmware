@@ -14,7 +14,7 @@ Revise the LED subsystem so that:
 2. **Add new patterns** inspired by programmable Christmas lights: twinkle,
    wash (color wipe), swap/alternate, breathe — alongside the existing solid and
    chase.
-3. **The bat eyes (LEDs 32 & 36) are a first-class concept.** A shared
+3. **The bat eyes (LEDs 28 & 30) are a first-class concept.** A shared
    `leds.set_eyes()` helper drives them, and each pattern decides how its eyes
    behave (steady white, slow pulse, counter-pulse) — the eyes are never treated
    as part of the animated body.
@@ -34,7 +34,7 @@ Revise the LED subsystem so that:
 ## Hardware layout (confirmed)
 
 - `NUM_LEDS = 44` is **correct**. The README's "40" is wrong and will be fixed.
-- **Eyes:** physical indices `32` and `36`.
+- **Eyes:** physical indices `28` and `30`.
 - **Body:** the other 42 LEDs, in ascending physical-index order.
 
 ---
@@ -47,7 +47,7 @@ Add layout constants and body/eye helpers; keep all existing functions.
 
 ```python
 NUM_LEDS  = 44
-EYES      = (32, 36)
+EYES      = (28, 30)
 BODY      = tuple(i for i in range(NUM_LEDS) if i not in EYES)  # 42 entries
 BODY_COUNT = len(BODY)
 
@@ -178,7 +178,7 @@ iteration, which would overwrite the solid-blue "scanning" indicator. While
   `leds.NUM_LEDS` / `leds.BODY` instead (single source of truth).
 - Update `README.md`:
   - Fix LED count 40 → 44.
-  - Document the eyes (indices 32 & 36) and the `set_eyes` helper.
+  - Document the eyes (indices 28 & 30) and the `set_eyes` helper.
   - Document the new patterns, the palette list, and the IO3 = palette role.
 
 ---
@@ -200,11 +200,11 @@ host-importable, so the rendering logic can be fully tested on a PC.
 
 **Representative tests:**
 
-1. `BODY` excludes 32 & 36, `len(BODY) == 42`, eyes ∉ BODY.
-2. `set_eyes()` writes the scaled color to indices 32 & 36 only.
+1. `BODY` excludes 28 & 30, `len(BODY) == 42`, eyes ∉ BODY.
+2. `set_eyes()` writes the scaled color to indices 28 & 30 only.
 3. **solid:** every body LED equals `palette[0]`; eyes are white; no eye index
    holds a body color.
-4. **chase:** after several ticks, indices 32 & 36 are always eye-white and
+4. **chase:** after several ticks, indices 28 & 30 are always eye-white and
    never take a chase body color.
 5. **wash:** the head advances; after `BODY_COUNT` steps the whole body is
    `color[0]`, then the color switches to `color[1]`; eyes stay white throughout.

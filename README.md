@@ -3,7 +3,7 @@
 MicroPython firmware for an ESP32-C3 with:
 - Interrupt-driven pushbuttons on IO0, IO2, IO3, IO4
 - 44 WS2812B (NeoPixel) addressable RGB LEDs on IO10 — including two "bat eye"
-  LEDs (indices **29** and **31**) driven independently of the animated body
+  LEDs (indices **28** and **30**) driven independently of the animated body
 - A library of colour-agnostic **patterns** combined with selectable **palettes**
 - BLE active scanner capturing SCAN_RSP packets
 
@@ -17,7 +17,7 @@ MicroPython firmware for an ESP32-C3 with:
 | IO2  | Button (active-low, internal pull-up) |
 | IO3  | Button (active-low, internal pull-up) |
 | IO4  | Button (active-low, internal pull-up) |
-| IO10 | WS2812B data line (44 LEDs daisy-chained; eyes at indices 29 & 31) |
+| IO10 | WS2812B data line (44 LEDs daisy-chained; eyes at indices 28 & 30) |
 
 **LED power warning**: 44 LEDs at full white draw ~2.6A. Use a dedicated
 5V supply for the LED strip and share GND with the ESP32-C3. Do not power
@@ -49,7 +49,7 @@ independent axes — any pattern can be combined with any palette at runtime.
 | `swap` | Body split into colour blocks that rotate which colour they show | Steady white |
 | `breathe` | Whole body fades one colour up/down, advancing colour each breath | Counter-pulse |
 
-The **eyes** (indices 29 & 31) are never part of the animated body; each pattern
+The **eyes** (indices 28 & 30) are never part of the animated body; each pattern
 drives them via `leds.set_eyes()`. Default eye colour is white.
 
 **Palettes** (0–10 brightness scale): `rainbow`, `rip`, `ember`, `ghost`,
@@ -200,13 +200,13 @@ leds.set_range(0, 10, 10, 0, 0)  # Set LEDs 0-9 to dim red
 leds.clear_and_show()            # All off
 
 # Body / eye helpers (colours on the 0–10 scale)
-leds.set_body_all(0, 10, 0)      # Fill only the body (eyes 29 & 31 untouched)
+leds.set_body_all(0, 10, 0)      # Fill only the body (eyes 28 & 30 untouched)
 leds.set_body_logical(0, 10, 0, 0)  # Set the Nth body LED, skipping the eyes
 leds.set_eyes(10, 10, 10)        # Set both bat eyes to white
 leds.clear_body()                # Body off; eyes untouched
 ```
 
-Layout constants: `leds.NUM_LEDS` (44), `leds.EYES` (`(29, 31)`),
+Layout constants: `leds.NUM_LEDS` (44), `leds.EYES` (`(28, 30)`),
 `leds.BODY` (the 42 non-eye indices), `leds.BODY_COUNT` (42).
 
 ### `patterns`

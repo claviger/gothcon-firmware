@@ -11,9 +11,9 @@ class TestLayout(unittest.TestCase):
     def test_num_leds_is_44(self):
         self.assertEqual(leds.NUM_LEDS, 44)
 
-    def test_eyes_are_29_and_31(self):
+    def test_eyes_are_28_and_30(self):
         # Physical eye indices identified on the badge with the diagnostic sweep.
-        self.assertEqual(leds.EYES, (29, 31))
+        self.assertEqual(leds.EYES, (28, 30))
 
     def test_body_excludes_eyes(self):
         for eye in leds.EYES:

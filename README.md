@@ -84,6 +84,11 @@ This installs:
 
 **macOS**: `ls /dev/tty.usbmodem*`
 
+> **Tip:** `flash.py` auto-detects the port when exactly one serial device is
+> present, so you can usually drop `--port` (e.g. `python flash.py --deploy`).
+> Specify `--port` only when several devices are connected. (The `make` targets
+> still require `PORT=...`.)
+
 ### 2. Put the ESP32-C3 in download mode (if needed)
 
 Hold the BOOT button (below the microcontroller on the left side) while pressing RESET (to the left of the microcontroller), then release RESET.

@@ -22,5 +22,21 @@ class TestSrcFiles(unittest.TestCase):
             self.assertIn(expected, names)
 
 
+class TestResolvePort(unittest.TestCase):
+    def test_explicit_port_always_wins(self):
+        self.assertEqual(flash.resolve_port("COM7", ["COM3", "COM4"]), "COM7")
+
+    def test_single_available_port_is_auto_selected(self):
+        self.assertEqual(flash.resolve_port(None, ["COM13"]), "COM13")
+
+    def test_no_ports_raises(self):
+        with self.assertRaises(ValueError):
+            flash.resolve_port(None, [])
+
+    def test_multiple_ports_without_explicit_raises(self):
+        with self.assertRaises(ValueError):
+            flash.resolve_port(None, ["COM3", "COM4"])
+
+
 if __name__ == "__main__":
     unittest.main()

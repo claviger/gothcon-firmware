@@ -12,7 +12,6 @@ Usage:
 import argparse
 import glob
 import os
-import platform
 import subprocess
 import sys
 
@@ -21,14 +20,28 @@ FLASH_ADDR = "0x0"
 BAUD       = 460800
 
 
-def default_port() -> str:
-    system = platform.system()
-    if system == "Windows":
-        return "COM3"
-    elif system == "Darwin":
-        return "/dev/tty.usbmodem1"
-    else:
-        return "/dev/ttyACM0"
+def available_ports() -> list:
+    """Serial port device names present on the system (via pyserial)."""
+    from serial.tools import list_ports
+    return sorted(p.device for p in list_ports.comports())
+
+
+def resolve_port(explicit, available) -> str:
+    """Choose which serial port to use.
+
+    An explicit --port always wins. Otherwise auto-select when exactly one port
+    is present; raise a clear error when there are none or several so we never
+    guess and flash the wrong device.
+    """
+    if explicit:
+        return explicit
+    if len(available) == 1:
+        return available[0]
+    if not available:
+        raise ValueError("no serial ports found - plug in the device or pass --port")
+    raise ValueError(
+        "multiple serial ports found ({}) - choose one with --port".format(
+            ", ".join(available)))
 
 
 def run(cmd: list) -> None:
@@ -87,8 +100,8 @@ def main() -> None:
     )
     ap.add_argument(
         "--port",
-        default=default_port(),
-        help=f"Serial port (default: {default_port()})",
+        default=None,
+        help="Serial port (default: auto-detect when exactly one port is present)",
     )
     ap.add_argument(
         "--firmware",
@@ -118,14 +131,21 @@ def main() -> None:
         ap.print_help()
         sys.exit(0)
 
+    try:
+        port = resolve_port(args.port, available_ports())
+    except ValueError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        sys.exit(2)
+    print(f"Using serial port: {port}")
+
     if args.erase_only:
-        erase(args.port, args.baud)
+        erase(port, args.baud)
     elif args.firmware:
-        erase(args.port, args.baud)
-        flash_firmware(args.port, args.baud, args.firmware)
+        erase(port, args.baud)
+        flash_firmware(port, args.baud, args.firmware)
 
     if args.deploy:
-        deploy_src(args.port)
+        deploy_src(port)
 
     print("\nDone.")
 

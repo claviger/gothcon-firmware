@@ -1,4 +1,4 @@
-# ESP32-C3 MicroPython Firmware
+# Gothcon 2026 Badge MicroPython Firmware
 
 MicroPython firmware for an ESP32-C3 with:
 - Interrupt-driven pushbuttons on IO0, IO2, IO3, IO4
@@ -18,11 +18,6 @@ MicroPython firmware for an ESP32-C3 with:
 | IO3  | Button (active-low, internal pull-up) |
 | IO4  | Button (active-low, internal pull-up) |
 | IO10 | WS2812B data line (44 LEDs daisy-chained; eyes at indices 28 & 30) |
-
-**LED power warning**: 44 LEDs at full white draw ~2.6A. Use a dedicated
-5V supply for the LED strip and share GND with the ESP32-C3. Do not power
-the strip from the MCU's onboard regulator. For USB-powered prototyping,
-keep brightness values ≤ 64 per channel.
 
 ---
 
@@ -72,7 +67,7 @@ This installs:
 
 1. Visit: https://micropython.org/download/ESP32_GENERIC_C3/
 2. Download the latest stable `.bin` file
-   (e.g. `ESP32_GENERIC_C3-20240602-v1.23.0.bin`)
+   (e.g. `ESP32_GENERIC_C3-20240602-v1.28.0.bin`)
 3. Place it in the `firmware/` directory
 
 ---
@@ -91,19 +86,18 @@ This installs:
 
 ### 2. Put the ESP32-C3 in download mode (if needed)
 
-Hold **IO0 (BOOT)** while pressing **RESET**, then release RESET.
-On most boards `esptool` triggers download mode automatically.
+Hold the BOOT button (below the microcontroller on the left side) while pressing RESET (to the left of the microcontroller), then release RESET.
 
 ### 3. Flash MicroPython
 
 Using `make` (requires GNU Make — available in Git Bash, WSL, or Chocolatey):
 ```bash
-make flash PORT=COM3 FIRMWARE=firmware/ESP32_GENERIC_C3-v1.23.0.bin
+make flash PORT=COM3 FIRMWARE=firmware/ESP32_GENERIC_C3-v1.28.0.bin
 ```
 
 Using Python directly (cross-platform):
 ```bash
-python flash.py --port COM3 --firmware firmware/ESP32_GENERIC_C3-v1.23.0.bin
+python flash.py --port COM3 --firmware firmware/ESP32_GENERIC_C3-v1.28.0.bin
 ```
 
 ### 4. Deploy source files
@@ -119,7 +113,7 @@ python flash.py --port COM3 --deploy
 ### 5. Flash + deploy in one step
 
 ```bash
-make all PORT=COM3 FIRMWARE=firmware/ESP32_GENERIC_C3-v1.23.0.bin
+make all PORT=COM3 FIRMWARE=firmware/ESP32_GENERIC_C3-v1.28.0.bin
 ```
 
 ---

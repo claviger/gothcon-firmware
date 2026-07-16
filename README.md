@@ -11,7 +11,7 @@ MicroPython firmware for an ESP32-C3 with:
 
 | GPIO | Function |
 |------|----------|
-| IO0  | Button (BOOT button, active-low, internal pull-up) |
+| IO0  | Button (active-low, internal pull-up) |
 | IO2  | Button (active-low, internal pull-up) |
 | IO3  | Button (active-low, internal pull-up) |
 | IO4  | Button (active-low, internal pull-up) |

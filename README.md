@@ -147,6 +147,7 @@ esp32c3-firmware/
 │   └── ble_scanner.py    # BLE active scan + SCAN_RSP capture
 └── tests/                # Host-side (CPython) unit tests — not deployed to device
     ├── harness.py        # FakeStrip + fake utime + sys.path setup
+    ├── test_flash.py
     ├── test_leds.py
     └── test_patterns.py
 ```

@@ -120,6 +120,14 @@ python flash.py --port COM3 --deploy
 ```bash
 make all PORT=COM3 FIRMWARE=firmware/ESP32_GENERIC_C3-v1.28.0.bin
 ```
+or directly:
+```bash
+python flash.py --firmware firmware/ESP32_GENERIC_C3-v1.28.0.bin --deploy
+```
+
+Writing firmware hard-resets the board, so `flash.py` waits for MicroPython to
+reboot — re-detecting the serial port, which can change on re-enumeration —
+before deploying. No manual RESET press is needed.
 
 ---
 

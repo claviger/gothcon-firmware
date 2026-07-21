@@ -38,5 +38,34 @@ class TestResolvePort(unittest.TestCase):
             flash.resolve_port(None, ["COM3", "COM4"])
 
 
+class TestReadyPort(unittest.TestCase):
+    def test_explicit_port_used_when_present(self):
+        self.assertEqual(flash._ready_port("COM5", ["COM5", "COM6"]), "COM5")
+
+    def test_explicit_port_absent_means_not_ready(self):
+        self.assertIsNone(flash._ready_port("COM5", ["COM6"]))
+
+    def test_single_port_auto_selected(self):
+        self.assertEqual(flash._ready_port(None, ["COM9"]), "COM9")
+
+    def test_no_ports_not_ready(self):
+        self.assertIsNone(flash._ready_port(None, []))
+
+    def test_ambiguous_ports_not_ready(self):
+        self.assertIsNone(flash._ready_port(None, ["COM9", "COM10"]))
+
+
+class TestWaitForMicropython(unittest.TestCase):
+    def test_returns_port_once_repl_responds(self):
+        port = flash.wait_for_micropython(
+            None, timeout=5, probe=lambda p: True, list_ports=lambda: ["COM9"])
+        self.assertEqual(port, "COM9")
+
+    def test_times_out_when_device_never_comes_up(self):
+        with self.assertRaises(TimeoutError):
+            flash.wait_for_micropython(
+                None, timeout=0, probe=lambda p: False, list_ports=lambda: [])
+
+
 if __name__ == "__main__":
     unittest.main()

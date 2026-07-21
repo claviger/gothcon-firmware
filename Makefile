@@ -26,4 +26,6 @@ flash:
 deploy:
 	$(PYTHON) flash.py --port $(PORT) --deploy
 
-all: flash deploy
+# Single flash.py process so it waits for the post-flash reboot before deploying.
+all:
+	$(PYTHON) flash.py --port $(PORT) --firmware $(FIRMWARE) --deploy

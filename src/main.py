@@ -128,5 +128,8 @@ while True:
     # Pause animation while scanning so the solid-blue indicator isn't overwritten.
     if not _ble_scanning:
         patterns.tick(_current_pattern, _current_palette, utime.ticks_ms())
+    # Animation tick granularity: no pattern can advance faster than this, so it
+    # sets the floor on every *_STEP_MS in patterns.py (20ms => fast patterns
+    # like `psychadelic` are possible; also snappier button response).
     #machine.lightsleep(100)
-    utime.sleep_ms(100)
+    utime.sleep_ms(20)

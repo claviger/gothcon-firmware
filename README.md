@@ -43,6 +43,7 @@ independent axes — any pattern can be combined with any palette at runtime.
 | `wash` | One colour floods across the body, then the next washes over it | Steady white |
 | `swap` | Body split into colour blocks that rotate which colour they show | Steady white |
 | `breathe` | Whole body fades one colour up/down, advancing colour each breath | Counter-pulse |
+| `psychadelic` | Whole body strobes through the palette in unison (all red, all orange, …), ~50 ms per colour | Steady white |
 
 The **eyes** (indices 28 & 30) are never part of the animated body; each pattern
 drives them via `leds.set_eyes()`. Default eye colour is white.

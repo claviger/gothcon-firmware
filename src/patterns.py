@@ -23,15 +23,23 @@ import random
 import leds
 
 # --- animation timing / shape constants (exposed so tests are deterministic) ---
-CHASE_STEP_MS   = 150
-WASH_STEP_MS    = 120
+#
+# A pattern can only advance as often as main.py calls tick(), so the main loop
+# period is the floor on every step below. That loop is 20ms, which means these
+# values are now the real on-badge cadence (they used to be rounded up to the
+# old 100ms loop — e.g. chase actually ran at 200ms, breathe at 100ms/step).
+# They are set to those previously-effective values so existing patterns look
+# exactly as they did before the loop was shortened for `psychadelic`.
+CHASE_STEP_MS   = 200
+WASH_STEP_MS    = 200
 SWAP_STEP_MS    = 400
 SWAP_BLOCK      = 2      # body LEDs per colour block in the swap pattern
-BREATHE_STEP_MS = 40
+BREATHE_STEP_MS = 100
 BREATHE_LEVELS  = 10     # brightness steps from off to full in one breath
-TWINKLE_STEP_MS = 90
+TWINKLE_STEP_MS = 100
 TWINKLE_DECAY   = 2      # per-step fade applied to each lit channel (0–10 scale)
 TWINKLE_SPAWN   = 2      # max new twinkles spawned per step
+PSYCH_STEP_MS   = 50     # psychadelic: dwell per colour (fast strobe)
 
 EYE_WHITE = (10, 10, 10)
 
@@ -253,6 +261,38 @@ def _make_breathe():
     return {"name": "breathe", "start": start, "tick": tick}
 
 
+def _make_psychadelic():
+    """Whole body strobes through the palette colours together, very fast.
+
+    Every body LED shows the same colour at once (all red, then all orange, ...)
+    advancing every PSYCH_STEP_MS. The eyes are deliberately excluded from the
+    cycle and held steady white.
+    """
+    st = {"idx": 0, "last_ms": None}
+
+    def _render(colors, idx):
+        c = colors[idx]
+        leds.set_body_all(c[0], c[1], c[2])
+        leds.set_eyes(*EYE_WHITE)
+        leds.write()
+
+    def start(colors):
+        st["idx"] = 0
+        st["last_ms"] = None
+        _render(colors, 0)
+
+    def tick(colors, t_ms):
+        if st["last_ms"] is None:
+            st["last_ms"] = t_ms
+            return
+        if utime.ticks_diff(t_ms, st["last_ms"]) >= PSYCH_STEP_MS:
+            st["last_ms"] = t_ms
+            st["idx"] = (st["idx"] + 1) % len(colors)
+            _render(colors, st["idx"])
+
+    return {"name": "psychadelic", "start": start, "tick": tick}
+
+
 # ---------------------------------------------------------------------------
 # Pattern registry — order defines the index seen by main.py / the buttons.
 # ---------------------------------------------------------------------------
@@ -264,6 +304,7 @@ _PATTERNS = [
     _make_wash(),
     _make_swap(),
     _make_breathe(),
+    _make_psychadelic(),
 ]
 
 

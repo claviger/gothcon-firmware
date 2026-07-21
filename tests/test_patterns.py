@@ -9,7 +9,7 @@ import leds
 import patterns
 
 # Pattern indices (per spec order)
-SOLID, CHASE, TWINKLE, WASH, SWAP, BREATHE = range(6)
+SOLID, CHASE, TWINKLE, WASH, SWAP, BREATHE, PSYCHADELIC = range(7)
 
 
 def scaled(c):
@@ -35,9 +35,10 @@ class _Base(unittest.TestCase):
 
 class TestApi(_Base):
     def test_pattern_count_and_names(self):
-        self.assertEqual(patterns.pattern_count(), 6)
+        self.assertEqual(patterns.pattern_count(), 7)
         self.assertEqual(patterns.pattern_name(SOLID), "solid")
         self.assertEqual(patterns.pattern_name(BREATHE), "breathe")
+        self.assertEqual(patterns.pattern_name(PSYCHADELIC), "psychadelic")
 
     def test_palette_count_and_names(self):
         self.assertEqual(patterns.palette_count(), 6)
@@ -147,6 +148,24 @@ class TestTwinkle(_Base):
             lit_counts.append(lit)
         self.assertGreaterEqual(max(lit_counts), 1)                    # something twinkles
         self.assertLessEqual(max(lit_counts), int(leds.BODY_COUNT * 0.4))  # majority off
+
+
+class TestPsychadelic(_Base):
+    def test_whole_body_shows_a_single_palette_color(self):
+        patterns.activate(PSYCHADELIC, 0)
+        first = scaled(patterns.PALETTES[0]["colors"][0])
+        for pos in range(leds.BODY_COUNT):
+            self.assertEqual(self.body(pos), first)   # every body LED identical
+        self.assert_eyes_white()
+
+    def test_advances_to_next_palette_color_after_step(self):
+        patterns.activate(PSYCHADELIC, 0)
+        colors = patterns.PALETTES[0]["colors"]
+        patterns.tick(PSYCHADELIC, 0, 0)                      # init last_ms
+        patterns.tick(PSYCHADELIC, 0, patterns.PSYCH_STEP_MS)
+        nxt = scaled(colors[1])
+        for pos in range(leds.BODY_COUNT):
+            self.assertEqual(self.body(pos), nxt)
 
 
 class TestEyesContract(_Base):

@@ -85,14 +85,14 @@ This installs:
 
 **macOS**: `ls /dev/tty.usbmodem*`
 
-> **Tip:** `flash.py` auto-detects the port when exactly one serial device is
-> present, so you can usually drop `--port` (e.g. `python flash.py --deploy`).
+> **Tip:** With the rev2 version of the firmware, `flash.py` auto-detects the port when exactly one 
+> serial device is present, so you can usually drop `--port` (e.g. `python flash.py --deploy`).
 > Specify `--port` only when several devices are connected. (The `make` targets
 > still require `PORT=...`.)
 
 ### 2. Put the ESP32-C3 in download mode (if needed)
 
-Hold the BOOT button (below the microcontroller on the left side) while pressing RESET (to the left of the microcontroller), then release RESET.
+Hold the BOOT button (below the microcontroller on the left side) while pressing RESET (to the left of the microcontroller), then release RESET. This is actually optional now, the rev2 version of flash.py will force the badge into download mode.
 
 ### 3. Flash MicroPython
 
@@ -103,7 +103,7 @@ make flash PORT=COM3 FIRMWARE=firmware/ESP32_GENERIC_C3-v1.28.0.bin
 
 Using Python directly (cross-platform):
 ```bash
-python flash.py --port COM3 --firmware firmware/ESP32_GENERIC_C3-v1.28.0.bin
+python flash.py --firmware firmware/ESP32_GENERIC_C3-v1.28.0.bin
 ```
 
 ### 4. Deploy source files
@@ -113,7 +113,7 @@ make deploy PORT=COM3
 ```
 or
 ```bash
-python flash.py --port COM3 --deploy
+python flash.py --deploy
 ```
 
 ### 5. Flash + deploy in one step
@@ -128,7 +128,7 @@ python flash.py --firmware firmware/ESP32_GENERIC_C3-v1.28.0.bin --deploy
 
 Writing firmware hard-resets the board, so `flash.py` waits for MicroPython to
 reboot — re-detecting the serial port, which can change on re-enumeration —
-before deploying. No manual RESET press is needed.
+before deploying. No manual RESET press is usually needed.
 
 ---
 

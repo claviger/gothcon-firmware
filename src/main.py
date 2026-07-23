@@ -17,14 +17,14 @@ import patterns
 
 leds.init()
 utime.sleep_ms(500)
-patterns.activate(0)   # start on the first pattern
+patterns.activate(0, 0)   # start on the first pattern + first palette
 
 
 # ---------------------------------------------------------------------------
 # Button callbacks
 # IO0 = BOOT button  → previous pattern
 # IO2               → next pattern
-# IO3               → (unassigned — add a role here if desired)
+# IO3               → next palette (colour set the current pattern renders with)
 # IO4               → BLE toggle (unchanged)
 #
 # NOTE: These run in ISR context — no blocking calls allowed (no leds.write()).
@@ -33,6 +33,7 @@ patterns.activate(0)   # start on the first pattern
 
 _pending         = None   # set by ISR, consumed by main loop
 _current_pattern = 0
+_current_palette = 0
 
 
 def on_btn_io0(pin_num):
@@ -48,8 +49,9 @@ def on_btn_io2(pin_num):
 
 
 def on_btn_io3(pin_num):
-    """IO3 pressed — unassigned."""
-    pass
+    """IO3 pressed — next palette."""
+    global _pending
+    _pending = "next_palette"
 
 
 def on_btn_io4(pin_num):
@@ -74,7 +76,8 @@ _ble_scanning    = False
 # Main loop — keep firmware alive; all work is interrupt/callback driven
 # ---------------------------------------------------------------------------
 
-print("[main] System ready. Pattern 0: {}".format(patterns.name(0)))
+print("[main] System ready. Pattern 0: {} / palette 0: {}".format(
+    patterns.pattern_name(0), patterns.palette_name(0)))
 
 while True:
     if _pending is not None:
@@ -82,14 +85,19 @@ while True:
         _pending = None
 
         if action == "prev_pattern":
-            _current_pattern = (_current_pattern - 1) % patterns.count()
-            print("[btn] IO0 — pattern {}: {}".format(_current_pattern, patterns.name(_current_pattern)))
-            patterns.activate(_current_pattern)
+            _current_pattern = (_current_pattern - 1) % patterns.pattern_count()
+            print("[btn] IO0 — pattern {}: {}".format(_current_pattern, patterns.pattern_name(_current_pattern)))
+            patterns.activate(_current_pattern, _current_palette)
 
         elif action == "next_pattern":
-            _current_pattern = (_current_pattern + 1) % patterns.count()
-            print("[btn] IO2 — pattern {}: {}".format(_current_pattern, patterns.name(_current_pattern)))
-            patterns.activate(_current_pattern)
+            _current_pattern = (_current_pattern + 1) % patterns.pattern_count()
+            print("[btn] IO2 — pattern {}: {}".format(_current_pattern, patterns.pattern_name(_current_pattern)))
+            patterns.activate(_current_pattern, _current_palette)
+
+        elif action == "next_palette":
+            _current_palette = (_current_palette + 1) % patterns.palette_count()
+            print("[btn] IO3 — palette {}: {}".format(_current_palette, patterns.palette_name(_current_palette)))
+            patterns.activate(_current_pattern, _current_palette)
 
         elif action == "ble_toggle":
             if not _ble_scanning:
@@ -114,8 +122,14 @@ while True:
                     dev_name = ad.get(0x09, ad.get(0x08, b"")).decode("utf-8", "ignore")
                     print("  {}  rssi={:4d}  name='{}'  raw={}".format(
                         addr_str, rec["rssi"], dev_name, rec["data"].hex()))
-                leds.clear_and_show()
+                # resume the current pattern/palette where scanning left off
+                patterns.activate(_current_pattern, _current_palette)
 
-    patterns.tick(_current_pattern, utime.ticks_ms())
+    # Pause animation while scanning so the solid-blue indicator isn't overwritten.
+    if not _ble_scanning:
+        patterns.tick(_current_pattern, _current_palette, utime.ticks_ms())
+    # Animation tick granularity: no pattern can advance faster than this, so it
+    # sets the floor on every *_STEP_MS in patterns.py (20ms => fast patterns
+    # like `psychadelic` are possible; also snappier button response).
     #machine.lightsleep(100)
-    utime.sleep_ms(100)
+    utime.sleep_ms(20)

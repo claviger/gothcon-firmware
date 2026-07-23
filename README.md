@@ -1,8 +1,10 @@
-# ESP32-C3 MicroPython Firmware
+# Gothcon 2026 Badge MicroPython Firmware
 
 MicroPython firmware for an ESP32-C3 with:
 - Interrupt-driven pushbuttons on IO0, IO2, IO3, IO4
-- 40 WS2812B (NeoPixel) addressable RGB LEDs on IO10
+- 44 WS2812B (NeoPixel) addressable RGB LEDs on IO10 — including two "bat eye"
+  LEDs (indices **28** and **30**) driven independently of the animated body
+- A library of colour-agnostic **patterns** combined with selectable **palettes**
 - BLE active scanner capturing SCAN_RSP packets
 
 ---
@@ -15,12 +17,39 @@ MicroPython firmware for an ESP32-C3 with:
 | IO2  | Button (active-low, internal pull-up) |
 | IO3  | Button (active-low, internal pull-up) |
 | IO4  | Button (active-low, internal pull-up) |
-| IO10 | WS2812B data line (40 LEDs daisy-chained) |
+| IO10 | WS2812B data line (44 LEDs daisy-chained; eyes at indices 28 & 30) |
 
-**LED power warning**: 40 LEDs at full white draw ~2.5A. Use a dedicated
-5V supply for the LED strip and share GND with the ESP32-C3. Do not power
-the strip from the MCU's onboard regulator. For USB-powered prototyping,
-keep brightness values ≤ 64 per channel.
+---
+
+## Controls & visual patterns
+
+The badge shows one **pattern** rendered with one **palette**. The two are
+independent axes — any pattern can be combined with any palette at runtime.
+
+| Button | Action |
+|--------|--------|
+| IO0 (BOOT) | Previous pattern |
+| IO2 | Next pattern |
+| IO3 | Next palette |
+| IO4 | Toggle BLE scan (solid blue while scanning; pattern resumes on stop) |
+
+**Patterns** (`src/patterns.py`):
+
+| Pattern | Body | Eyes |
+|---------|------|------|
+| `solid` | All body LEDs hold the first palette colour (static) | Steady white |
+| `chase` | Palette colours chase along the body | Steady white |
+| `twinkle` | Body mostly off; random LEDs flash in palette colours and fade | Slow pulse |
+| `wash` | One colour floods across the body, then the next washes over it | Steady white |
+| `swap` | Body split into colour blocks that rotate which colour they show | Steady white |
+| `breathe` | Whole body fades one colour up/down, advancing colour each breath | Counter-pulse |
+| `psychadelic` | Whole body strobes through the palette in unison (all red, all orange, …), ~50 ms per colour | Steady white |
+
+The **eyes** (indices 28 & 30) are never part of the animated body; each pattern
+drives them via `leds.set_eyes()`. Default eye colour is white.
+
+**Palettes** (0–10 brightness scale): `rainbow`, `rip`, `ember`, `ghost`,
+`blood`, `amethyst`. Add more by appending to `PALETTES` in `src/patterns.py`.
 
 ---
 
@@ -39,7 +68,7 @@ This installs:
 
 1. Visit: https://micropython.org/download/ESP32_GENERIC_C3/
 2. Download the latest stable `.bin` file
-   (e.g. `ESP32_GENERIC_C3-20240602-v1.23.0.bin`)
+   (e.g. `ESP32_GENERIC_C3-20240602-v1.28.0.bin`)
 3. Place it in the `firmware/` directory
 
 ---
@@ -56,21 +85,25 @@ This installs:
 
 **macOS**: `ls /dev/tty.usbmodem*`
 
+> **Tip:** `flash.py` auto-detects the port when exactly one serial device is
+> present, so you can usually drop `--port` (e.g. `python flash.py --deploy`).
+> Specify `--port` only when several devices are connected. (The `make` targets
+> still require `PORT=...`.)
+
 ### 2. Put the ESP32-C3 in download mode (if needed)
 
-Hold **IO0 (BOOT)** while pressing **RESET**, then release RESET.
-On most boards `esptool` triggers download mode automatically.
+Hold the BOOT button (below the microcontroller on the left side) while pressing RESET (to the left of the microcontroller), then release RESET.
 
 ### 3. Flash MicroPython
 
 Using `make` (requires GNU Make — available in Git Bash, WSL, or Chocolatey):
 ```bash
-make flash PORT=COM3 FIRMWARE=firmware/ESP32_GENERIC_C3-v1.23.0.bin
+make flash PORT=COM3 FIRMWARE=firmware/ESP32_GENERIC_C3-v1.28.0.bin
 ```
 
 Using Python directly (cross-platform):
 ```bash
-python flash.py --port COM3 --firmware firmware/ESP32_GENERIC_C3-v1.23.0.bin
+python flash.py --port COM3 --firmware firmware/ESP32_GENERIC_C3-v1.28.0.bin
 ```
 
 ### 4. Deploy source files
@@ -86,8 +119,16 @@ python flash.py --port COM3 --deploy
 ### 5. Flash + deploy in one step
 
 ```bash
-make all PORT=COM3 FIRMWARE=firmware/ESP32_GENERIC_C3-v1.23.0.bin
+make all PORT=COM3 FIRMWARE=firmware/ESP32_GENERIC_C3-v1.28.0.bin
 ```
+or directly:
+```bash
+python flash.py --firmware firmware/ESP32_GENERIC_C3-v1.28.0.bin --deploy
+```
+
+Writing firmware hard-resets the board, so `flash.py` waits for MicroPython to
+reboot — re-detecting the serial port, which can change on re-enumeration —
+before deploying. No manual RESET press is needed.
 
 ---
 
@@ -112,12 +153,30 @@ esp32c3-firmware/
 ├── requirements.txt      # Host dependencies (esptool, mpremote)
 ├── firmware/
 │   └── .gitkeep          # Place MicroPython .bin here
-└── src/
-    ├── main.py           # Entry point — wires all modules together
-    ├── buttons.py        # GPIO interrupt + debounce (IO0/2/3/4)
-    ├── leds.py           # WS2812B NeoPixel driver (IO10, 40 LEDs)
-    └── ble_scanner.py    # BLE active scan + SCAN_RSP capture
+├── src/
+│   ├── main.py           # Entry point — wires all modules together
+│   ├── buttons.py        # GPIO interrupt + debounce (IO0/2/3/4)
+│   ├── leds.py           # WS2812B NeoPixel driver (IO10, 44 LEDs + eyes)
+│   ├── patterns.py       # Pattern/palette library (two independent axes)
+│   └── ble_scanner.py    # BLE active scan + SCAN_RSP capture
+└── tests/                # Host-side (CPython) unit tests — not deployed to device
+    ├── harness.py        # FakeStrip + fake utime + sys.path setup
+    ├── test_flash.py
+    ├── test_leds.py
+    └── test_patterns.py
 ```
+
+### Running the tests
+
+The `leds` and `patterns` modules are importable on a host PC (the MicroPython
+hardware imports are deferred), so their logic is covered by plain `unittest`:
+
+```bash
+python -B -m unittest discover -s tests
+```
+
+(`-B` keeps the source tree free of `__pycache__`. `flash.py --deploy` only ever
+ships `src/*.py`, so stray bytecode never reaches the device regardless.)
 
 ---
 
@@ -145,13 +204,38 @@ buttons.unregister(2)
 import leds
 
 leds.init()                      # Must call first
-leds.set_all(0, 50, 0)          # Fill green (no update yet)
+leds.set_all(0, 10, 0)           # Fill green, all 44 LEDs (no update yet)
 leds.write()                     # Push buffer to hardware
-leds.set_all_and_show(0, 0, 50) # Fill blue + push in one call
-leds.set_one(3, 50, 0, 0)       # Set LED index 3 to red
-leds.set_range(0, 10, 10, 0, 0) # Set LEDs 0-9 to dim red
+leds.set_all_and_show(0, 0, 10)  # Fill blue + push in one call
+leds.set_one(3, 10, 0, 0)        # Set LED index 3 to red
+leds.set_range(0, 10, 10, 0, 0)  # Set LEDs 0-9 to dim red
 leds.clear_and_show()            # All off
+
+# Body / eye helpers (colours on the 0–10 scale)
+leds.set_body_all(0, 10, 0)      # Fill only the body (eyes 28 & 30 untouched)
+leds.set_body_logical(0, 10, 0, 0)  # Set the Nth body LED, skipping the eyes
+leds.set_eyes(10, 10, 10)        # Set both bat eyes to white
+leds.clear_body()                # Body off; eyes untouched
 ```
+
+Layout constants: `leds.NUM_LEDS` (44), `leds.EYES` (`(28, 30)`),
+`leds.BODY` (the 42 non-eye indices), `leds.BODY_COUNT` (42).
+
+### `patterns`
+
+Two independent axes — pattern index and palette index:
+
+```python
+import patterns
+
+patterns.pattern_count();  patterns.pattern_name(i)
+patterns.palette_count();  patterns.palette_name(j)
+patterns.activate(pattern_i, palette_j)      # render initial frame
+patterns.tick(pattern_i, palette_j, t_ms)    # advance; no-op for static patterns
+```
+
+Changing either axis simply re-calls `activate(...)`, so the running pattern
+always reflects the currently selected palette.
 
 ### `ble_scanner`
 

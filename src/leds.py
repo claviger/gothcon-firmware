@@ -12,11 +12,19 @@
 # TIMING WARNING:
 #   np.write() is a blocking call (~52ms for 40 LEDs). Do not call from an ISR.
 
-import neopixel
-from machine import Pin
+# NOTE: `neopixel` and `machine` are MicroPython-only and are imported lazily
+# inside init() so this module can be imported on a host PC (CPython) for tests.
 
 NUM_LEDS = 44
 LED_PIN  = 10
+
+# Physical indices of the two "eye" LEDs on the bat badge.
+EYES = (28, 30)
+# Every other LED, in ascending physical order — the animated "body" of the strip.
+# Patterns address the body by logical position (0..BODY_COUNT-1) so they never
+# accidentally colour an eye.
+BODY = tuple(i for i in range(NUM_LEDS) if i not in EYES)
+BODY_COUNT = len(BODY)
 
 # Global brightness limiter: maximum raw neopixel value (0–255) that a
 # logical brightness of 10 maps to.  Default is 3 to conserve power. 
@@ -34,6 +42,8 @@ def _scale(v: int) -> int:
 def init() -> None:
     """Initialise the NeoPixel strip. Must be called before any other function."""
     global _np
+    import neopixel              # MicroPython-only; imported lazily for host tests
+    from machine import Pin
     _np = neopixel.NeoPixel(Pin(LED_PIN, Pin.OUT), NUM_LEDS)
     clear()
     write()
@@ -57,6 +67,39 @@ def set_range(start: int, end: int, r: int, g: int, b: int) -> None:
     """
     for i in range(start, min(end, NUM_LEDS)):
         _np[i] = (_scale(r), _scale(g), _scale(b))
+
+
+def set_eyes(r: int, g: int, b: int) -> None:
+    """Set both bat-eye LEDs (indices in EYES) to the same colour (0–10 scale).
+
+    Call write() to push to hardware. Patterns use this to drive the eyes
+    independently of the animated body.
+    """
+    c = (_scale(r), _scale(g), _scale(b))
+    for i in EYES:
+        _np[i] = c
+
+
+def set_body_all(r: int, g: int, b: int) -> None:
+    """Fill every body LED (eyes left untouched). Call write() to push to hardware."""
+    c = (_scale(r), _scale(g), _scale(b))
+    for i in BODY:
+        _np[i] = c
+
+
+def set_body_logical(pos: int, r: int, g: int, b: int) -> None:
+    """Set the `pos`-th body LED (0..BODY_COUNT-1), mapping past the eyes.
+
+    Logical body positions are contiguous, so a chase/wash never lands on an eye.
+    Call write() to push to hardware.
+    """
+    if 0 <= pos < BODY_COUNT:
+        _np[BODY[pos]] = (_scale(r), _scale(g), _scale(b))
+
+
+def clear_body() -> None:
+    """Turn off all body LEDs; eyes are left untouched. Call write() to push."""
+    set_body_all(0, 0, 0)
 
 
 def clear() -> None:

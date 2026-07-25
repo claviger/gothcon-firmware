@@ -41,8 +41,19 @@ class TestApi(_Base):
         self.assertEqual(patterns.pattern_name(PSYCHEDELIC), "psychedelic")
 
     def test_palette_count_and_names(self):
-        self.assertEqual(patterns.palette_count(), 6)
+        self.assertEqual(patterns.palette_count(), 10)
         self.assertEqual(patterns.palette_name(0), "rainbow")
+        names = [patterns.palette_name(j) for j in range(patterns.palette_count())]
+        for expected in ("halloween", "toxic", "ocean", "sunset"):
+            self.assertIn(expected, names)
+
+    def test_every_palette_is_well_formed(self):
+        for pal in patterns.PALETTES:
+            self.assertTrue(pal["colors"], pal["name"])
+            for c in pal["colors"]:
+                self.assertEqual(len(c), 3, pal["name"])
+                for ch in c:
+                    self.assertTrue(0 <= ch <= 10, pal["name"])
 
     def test_palette_change_recolors_body(self):
         patterns.activate(SOLID, 0)            # rainbow[0]

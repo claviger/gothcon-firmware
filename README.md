@@ -52,7 +52,8 @@ The **eyes** (indices 28 & 30) are never part of the animated body; each pattern
 drives them via `leds.set_eyes()`. Default eye colour is white.
 
 **Palettes** (0–10 brightness scale): `rainbow`, `rip`, `ember`, `ghost`,
-`blood`, `amethyst`. Add more by appending to `PALETTES` in `src/patterns.py`.
+`blood`, `amethyst`, `halloween`, `toxic`, `ocean`, `sunset`. Add more by
+appending to `PALETTES` in `src/patterns.py`.
 
 ---
 

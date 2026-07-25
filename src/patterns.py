@@ -24,12 +24,10 @@ import leds
 
 # --- animation timing / shape constants (exposed so tests are deterministic) ---
 #
-# A pattern can only advance as often as main.py calls tick(), so the main loop
-# period is the floor on every step below. That loop is 20ms, which means these
-# values are now the real on-badge cadence (they used to be rounded up to the
-# old 100ms loop — e.g. chase actually ran at 200ms, breathe at 100ms/step).
-# They are set to those previously-effective values so existing patterns look
-# exactly as they did before the loop was shortened for `psychedelic`.
+# A pattern can only advance as often as main.py calls tick(), so the main-loop
+# period (50ms) is the floor on every step below. All values are multiples of
+# 50ms so the rendered cadence is exact, and they match the on-badge speeds the
+# patterns have had since rev2.
 CHASE_STEP_MS   = 200
 WASH_STEP_MS    = 200
 SWAP_STEP_MS    = 400

@@ -1,20 +1,29 @@
 # buttons.py — GPIO interrupt-driven button handler with debounce
 #
-# Registers IRQ handlers for active-low pushbuttons on IO0, IO2, IO3, IO4.
+# The badge has four directional pushbuttons (silkscreen S4-S7), all active-low
+# with internal pull-ups enabled (unpressed = HIGH, pressed = LOW):
+#
+#   Up    = S6 = IO4      Down  = S7 = IO3
+#   Left  = S4 = IO0      Right = S5 = IO2
+#
+# The badge's BOOT (S3) and RESET (S2) buttons are separate hardware controls
+# wired to the chip's strapping/enable circuitry — they are NOT on these GPIOs
+# and are not handled here.
+#
 # Uses micropython.schedule() to dispatch user callbacks outside hard-ISR
 # context, where heap allocation is safe.
-#
-# Wiring assumption: buttons pull the GPIO pin to GND when pressed.
-# Internal PULL_UP resistors are enabled so unpressed = HIGH, pressed = LOW.
-#
-# IO0 note: This is the BOOT button on most ESP32-C3 boards. Holding it LOW
-# at power-on forces ROM bootloader mode. At runtime it is a normal GPIO.
 
 import micropython
 import utime
 from machine import Pin
 
 DEBOUNCE_MS = 50
+
+# Badge button map: name -> GPIO (silkscreen labels in comments)
+PIN_UP    = 4   # S6
+PIN_DOWN  = 3   # S7
+PIN_LEFT  = 0   # S4
+PIN_RIGHT = 2   # S5
 
 # Keyed by integer GPIO number
 _callbacks  = {}   # pin_num -> callable(pin_num)
@@ -46,7 +55,7 @@ def register(pin_num: int, callback) -> None:
     Register a callback for a single button GPIO.
 
     Args:
-        pin_num:  GPIO number (e.g. 0, 2, 3, 4)
+        pin_num:  GPIO number (see PIN_UP/PIN_DOWN/PIN_LEFT/PIN_RIGHT)
         callback: callable(pin_num) invoked on each debounced button press
     """
     p = Pin(pin_num, Pin.IN, Pin.PULL_UP)
@@ -56,20 +65,20 @@ def register(pin_num: int, callback) -> None:
     p.irq(trigger=Pin.IRQ_FALLING, handler=_make_isr(pin_num))
 
 
-def register_all(cb_io0, cb_io2, cb_io3, cb_io4) -> None:
+def register_all(cb_up, cb_down, cb_left, cb_right) -> None:
     """
-    Register callbacks for all four buttons in one call.
+    Register callbacks for all four directional buttons in one call.
 
     Args:
-        cb_io0: callback for IO0 (BOOT button)
-        cb_io2: callback for IO2
-        cb_io3: callback for IO3
-        cb_io4: callback for IO4
+        cb_up:    callback for Up    (S6, IO4)
+        cb_down:  callback for Down  (S7, IO3)
+        cb_left:  callback for Left  (S4, IO0)
+        cb_right: callback for Right (S5, IO2)
     """
-    register(0, cb_io0)
-    register(2, cb_io2)
-    register(3, cb_io3)
-    register(4, cb_io4)
+    register(PIN_UP,    cb_up)
+    register(PIN_DOWN,  cb_down)
+    register(PIN_LEFT,  cb_left)
+    register(PIN_RIGHT, cb_right)
 
 
 def unregister(pin_num: int) -> None:

@@ -70,3 +70,42 @@ class FakeStrip:
 
     def write(self):
         self.writes += 1
+
+
+class FakePin:
+    """Stand-in for machine.Pin; records config and lets tests fire the IRQ."""
+
+    IN          = "IN"
+    OUT         = "OUT"
+    PULL_UP     = "PULL_UP"
+    IRQ_FALLING = "IRQ_FALLING"
+    IRQ_RISING  = "IRQ_RISING"
+
+    instances = {}   # pin_num -> most recently constructed FakePin
+
+    def __init__(self, pin_num, mode=None, pull=None):
+        self.pin_num = pin_num
+        self.mode    = mode
+        self.pull    = pull
+        self.trigger = None
+        self.handler = None
+        FakePin.instances[pin_num] = self
+
+    def irq(self, trigger=None, handler=None):
+        self.trigger = trigger
+        self.handler = handler
+
+    def press(self):
+        """Test helper: simulate the falling-edge interrupt firing."""
+        if self.handler:
+            self.handler(self)
+
+
+_fake_machine = types.ModuleType("machine")
+_fake_machine.Pin = FakePin
+sys.modules["machine"] = _fake_machine
+
+# micropython.schedule() defers a soft callback; on the host, run it immediately.
+_fake_micropython = types.ModuleType("micropython")
+_fake_micropython.schedule = lambda fn, arg: fn(arg)
+sys.modules["micropython"] = _fake_micropython

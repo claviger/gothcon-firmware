@@ -13,11 +13,14 @@ MicroPython firmware for an ESP32-C3 with:
 
 | GPIO | Function |
 |------|----------|
-| IO0  | Button (BOOT button, active-low, internal pull-up) |
-| IO2  | Button (active-low, internal pull-up) |
-| IO3  | Button (active-low, internal pull-up) |
-| IO4  | Button (active-low, internal pull-up) |
+| IO4  | Up button (S6, active-low, internal pull-up) |
+| IO3  | Down button (S7, active-low, internal pull-up) |
+| IO0  | Left button (S4, active-low, internal pull-up) |
+| IO2  | Right button (S5, active-low, internal pull-up) |
 | IO10 | WS2812B data line (44 LEDs daisy-chained; eyes at indices 28 & 30) |
+
+The badge's **BOOT (S3)** and **RESET (S2)** buttons are separate hardware
+controls (used for flashing) and are not on these GPIOs.
 
 ---
 
@@ -190,12 +193,12 @@ import buttons
 def my_callback(pin_num):
     print(f"GPIO {pin_num} pressed")
 
-# Register all four buttons at once
-buttons.register_all(cb_io0, cb_io2, cb_io3, cb_io4)
+# Register all four directional buttons at once (Up, Down, Left, Right)
+buttons.register_all(cb_up, cb_down, cb_left, cb_right)
 
-# Or register individually
-buttons.register(2, my_callback)
-buttons.unregister(2)
+# Or register individually using the named pins
+buttons.register(buttons.PIN_LEFT, my_callback)
+buttons.unregister(buttons.PIN_LEFT)
 ```
 
 ### `leds`

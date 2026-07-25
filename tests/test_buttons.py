@@ -23,6 +23,9 @@ class TestPinMap(unittest.TestCase):
 class TestRegisterAll(unittest.TestCase):
     def setUp(self):
         FakePin.instances.clear()
+        buttons._callbacks.clear()
+        buttons._last_event.clear()
+        buttons._pins.clear()
         self.presses = []
         buttons.register_all(
             lambda p: self.presses.append(("up", p)),
@@ -53,6 +56,20 @@ class TestRegisterAll(unittest.TestCase):
         fake_utime.advance(buttons.DEBOUNCE_MS + 1)
         FakePin.instances[buttons.PIN_LEFT].press()   # genuine second press
         self.assertEqual([name for name, _ in self.presses], ["left", "left"])
+
+    def test_press_at_exact_debounce_boundary_is_accepted(self):
+        fake_utime.advance(100)
+        FakePin.instances[buttons.PIN_LEFT].press()
+        fake_utime.advance(buttons.DEBOUNCE_MS)   # exactly the boundary — accepted
+        FakePin.instances[buttons.PIN_LEFT].press()
+        self.assertEqual([name for name, _ in self.presses], ["left", "left"])
+
+    def test_unregister_stops_dispatch_for_that_pin_only(self):
+        fake_utime.advance(100)
+        buttons.unregister(buttons.PIN_UP)
+        FakePin.instances[buttons.PIN_UP].press()      # no-op after unregister
+        FakePin.instances[buttons.PIN_RIGHT].press()   # still works
+        self.assertEqual(self.presses, [("right", buttons.PIN_RIGHT)])
 
 
 if __name__ == "__main__":

@@ -1,7 +1,7 @@
 # Gothcon 2026 Badge MicroPython Firmware
 
 MicroPython firmware for an ESP32-C3 with:
-- Interrupt-driven pushbuttons on IO0, IO2, IO3, IO4
+- Four interrupt-driven directional pushbuttons (Up/Down/Left/Right, S4–S7)
 - 44 WS2812B (NeoPixel) addressable RGB LEDs on IO10 — including two "bat eye"
   LEDs (indices **28** and **30**) driven independently of the animated body
 - A library of colour-agnostic **patterns** combined with selectable **palettes**
@@ -164,7 +164,8 @@ esp32c3-firmware/
 │   ├── patterns.py       # Pattern/palette library (two independent axes)
 │   └── ble_scanner.py    # BLE active scan + SCAN_RSP capture
 └── tests/                # Host-side (CPython) unit tests — not deployed to device
-    ├── harness.py        # FakeStrip + fake utime + sys.path setup
+    ├── harness.py        # Fake strip/pins/clock + sys.path setup
+    ├── test_buttons.py
     ├── test_flash.py
     ├── test_leds.py
     └── test_patterns.py
@@ -172,8 +173,9 @@ esp32c3-firmware/
 
 ### Running the tests
 
-The `leds` and `patterns` modules are importable on a host PC (the MicroPython
-hardware imports are deferred), so their logic is covered by plain `unittest`:
+The `leds`, `patterns`, and `buttons` modules are importable on a host PC (the
+MicroPython hardware imports are deferred, and the test harness fakes `machine`,
+`micropython`, and `utime`), so their logic is covered by plain `unittest`:
 
 ```bash
 python -B -m unittest discover -s tests

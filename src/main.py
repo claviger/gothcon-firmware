@@ -22,10 +22,10 @@ patterns.activate(0, 0)   # start on the first pattern + first palette
 
 # ---------------------------------------------------------------------------
 # Button callbacks
-# IO0 = BOOT button  → previous pattern
-# IO2               → next pattern
-# IO3               → next palette (colour set the current pattern renders with)
-# IO4               → BLE toggle (unchanged)
+# Up    (S6, IO4) → next pattern
+# Down  (S7, IO3) → BLE scan toggle (function will be rewritten later)
+# Left  (S4, IO0) → previous palette
+# Right (S5, IO2) → next palette
 #
 # NOTE: These run in ISR context — no blocking calls allowed (no leds.write()).
 #       Set a flag and let the main loop do the actual LED update.
@@ -36,32 +36,32 @@ _current_pattern = 0
 _current_palette = 0
 
 
-def on_btn_io0(pin_num):
-    """IO0 pressed — previous pattern."""
-    global _pending
-    _pending = "prev_pattern"
-
-
-def on_btn_io2(pin_num):
-    """IO2 pressed — next pattern."""
+def on_btn_up(pin_num):
+    """Up (S6) — next pattern."""
     global _pending
     _pending = "next_pattern"
 
 
-def on_btn_io3(pin_num):
-    """IO3 pressed — next palette."""
-    global _pending
-    _pending = "next_palette"
-
-
-def on_btn_io4(pin_num):
-    """IO4 pressed — start scan, or stop and dump results if already scanning."""
+def on_btn_down(pin_num):
+    """Down (S7) — BLE scan toggle."""
     global _pending
     _pending = "ble_toggle"
 
 
-buttons.register_all(on_btn_io0, on_btn_io2, on_btn_io3, on_btn_io4)
-print("[main] Buttons registered on IO0, IO2, IO3, IO4")
+def on_btn_left(pin_num):
+    """Left (S4) — previous palette."""
+    global _pending
+    _pending = "prev_palette"
+
+
+def on_btn_right(pin_num):
+    """Right (S5) — next palette."""
+    global _pending
+    _pending = "next_palette"
+
+
+buttons.register_all(on_btn_up, on_btn_down, on_btn_left, on_btn_right)
+print("[main] Buttons registered: Up=IO4 Down=IO3 Left=IO0 Right=IO2")
 
 
 # ---------------------------------------------------------------------------
@@ -84,19 +84,19 @@ while True:
         action   = _pending
         _pending = None
 
-        if action == "prev_pattern":
-            _current_pattern = (_current_pattern - 1) % patterns.pattern_count()
-            print("[btn] IO0 — pattern {}: {}".format(_current_pattern, patterns.pattern_name(_current_pattern)))
+        if action == "next_pattern":
+            _current_pattern = (_current_pattern + 1) % patterns.pattern_count()
+            print("[btn] Up — pattern {}: {}".format(_current_pattern, patterns.pattern_name(_current_pattern)))
             patterns.activate(_current_pattern, _current_palette)
 
-        elif action == "next_pattern":
-            _current_pattern = (_current_pattern + 1) % patterns.pattern_count()
-            print("[btn] IO2 — pattern {}: {}".format(_current_pattern, patterns.pattern_name(_current_pattern)))
+        elif action == "prev_palette":
+            _current_palette = (_current_palette - 1) % patterns.palette_count()
+            print("[btn] Left — palette {}: {}".format(_current_palette, patterns.palette_name(_current_palette)))
             patterns.activate(_current_pattern, _current_palette)
 
         elif action == "next_palette":
             _current_palette = (_current_palette + 1) % patterns.palette_count()
-            print("[btn] IO3 — palette {}: {}".format(_current_palette, patterns.palette_name(_current_palette)))
+            print("[btn] Right — palette {}: {}".format(_current_palette, patterns.palette_name(_current_palette)))
             patterns.activate(_current_pattern, _current_palette)
 
         elif action == "ble_toggle":
@@ -104,13 +104,13 @@ while True:
                 if not _ble_initialized:
                     ble_scanner.init()
                     _ble_initialized = True
-                print("[btn] IO4 pressed — starting BLE scan")
+                print("[btn] Down — starting BLE scan")
                 ble_scanner.start_scan(interval_us=100_000, window_us=10_000)
                 _ble_scanning = True
                 leds.set_all(0, 0, 7)   # dim blue = scanning
                 leds.write()
             else:
-                print("[btn] IO4 pressed — stopping BLE scan, results:")
+                print("[btn] Down — stopping BLE scan, results:")
                 ble_scanner.stop_scan()
                 _ble_scanning = False
                 results = ble_scanner.get_results()

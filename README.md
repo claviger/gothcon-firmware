@@ -31,10 +31,10 @@ independent axes — any pattern can be combined with any palette at runtime.
 
 | Button | Action |
 |--------|--------|
-| IO0 (BOOT) | Previous pattern |
-| IO2 | Next pattern |
-| IO3 | Next palette |
-| IO4 | Toggle BLE scan (solid blue while scanning; pattern resumes on stop) |
+| Up (S6 / IO4) | Next pattern |
+| Down (S7 / IO3) | Toggle BLE scan (solid blue while scanning; pattern resumes on stop) |
+| Left (S4 / IO0) | Previous palette |
+| Right (S5 / IO2) | Next palette |
 
 **Patterns** (`src/patterns.py`):
 

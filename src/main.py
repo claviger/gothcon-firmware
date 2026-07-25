@@ -65,7 +65,7 @@ print("[main] Buttons registered: Up=IO4 Down=IO3 Left=IO0 Right=IO2")
 
 
 # ---------------------------------------------------------------------------
-# BLE active scan — started on demand by IO4, not at boot
+# BLE active scan — started on demand by Down (S7, IO3), not at boot
 # ---------------------------------------------------------------------------
 
 _ble_initialized = False

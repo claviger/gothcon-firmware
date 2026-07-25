@@ -158,7 +158,7 @@ esp32c3-firmware/
 │   └── .gitkeep          # Place MicroPython .bin here
 ├── src/
 │   ├── main.py           # Entry point — wires all modules together
-│   ├── buttons.py        # GPIO interrupt + debounce (IO0/2/3/4)
+│   ├── buttons.py        # GPIO interrupt + debounce (Up/Down/Left/Right)
 │   ├── leds.py           # WS2812B NeoPixel driver (IO10, 44 LEDs + eyes)
 │   ├── patterns.py       # Pattern/palette library (two independent axes)
 │   └── ble_scanner.py    # BLE active scan + SCAN_RSP capture

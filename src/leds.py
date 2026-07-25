@@ -10,7 +10,9 @@
 #   For USB-powered prototyping keep per-channel values ≤ 64 (~520mA total).
 #
 # TIMING WARNING:
-#   np.write() is a blocking call (~52ms for 40 LEDs). Do not call from an ISR.
+#   np.write() is a blocking call. WS2812B clocks at 800kHz (1.25us/bit, 24 bits
+#   per LED), so 44 LEDs take ~1.3ms plus a ~50us reset latch. Short, but still
+#   far too long for an ISR — do not call it from an interrupt handler.
 
 # NOTE: `neopixel` and `machine` are MicroPython-only and are imported lazily
 # inside init() so this module can be imported on a host PC (CPython) for tests.
@@ -108,7 +110,7 @@ def clear() -> None:
 
 
 def write() -> None:
-    """Push the pixel buffer to the LED strip. Blocks for ~55ms."""
+    """Push the pixel buffer to the LED strip. Blocks for ~1.3ms (44 LEDs)."""
     _np.write()
 
 

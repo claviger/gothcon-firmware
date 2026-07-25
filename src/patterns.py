@@ -29,7 +29,7 @@ import leds
 # values are now the real on-badge cadence (they used to be rounded up to the
 # old 100ms loop — e.g. chase actually ran at 200ms, breathe at 100ms/step).
 # They are set to those previously-effective values so existing patterns look
-# exactly as they did before the loop was shortened for `psychadelic`.
+# exactly as they did before the loop was shortened for `psychedelic`.
 CHASE_STEP_MS   = 200
 WASH_STEP_MS    = 200
 SWAP_STEP_MS    = 400
@@ -39,7 +39,7 @@ BREATHE_LEVELS  = 10     # brightness steps from off to full in one breath
 TWINKLE_STEP_MS = 100
 TWINKLE_DECAY   = 2      # per-step fade applied to each lit channel (0–10 scale)
 TWINKLE_SPAWN   = 2      # max new twinkles spawned per step
-PSYCH_STEP_MS   = 50     # psychadelic: dwell per colour (fast strobe)
+PSYCH_STEP_MS   = 50     # psychedelic: dwell per colour (fast strobe)
 
 EYE_WHITE = (10, 10, 10)
 
@@ -261,7 +261,7 @@ def _make_breathe():
     return {"name": "breathe", "start": start, "tick": tick}
 
 
-def _make_psychadelic():
+def _make_psychedelic():
     """Whole body strobes through the palette colours together, very fast.
 
     Every body LED shows the same colour at once (all red, then all orange, ...)
@@ -290,7 +290,7 @@ def _make_psychadelic():
             st["idx"] = (st["idx"] + 1) % len(colors)
             _render(colors, st["idx"])
 
-    return {"name": "psychadelic", "start": start, "tick": tick}
+    return {"name": "psychedelic", "start": start, "tick": tick}
 
 
 # ---------------------------------------------------------------------------
@@ -304,7 +304,7 @@ _PATTERNS = [
     _make_wash(),
     _make_swap(),
     _make_breathe(),
-    _make_psychadelic(),
+    _make_psychedelic(),
 ]
 
 

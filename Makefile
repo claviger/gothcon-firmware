@@ -1,5 +1,6 @@
 PORT     ?= COM3
-FIRMWARE ?= firmware/micropython.bin
+# "auto" = newest .bin in firmware/, downloading the pinned build if empty
+FIRMWARE ?= auto
 PYTHON   := python
 
 .PHONY: help erase flash deploy all

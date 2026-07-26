@@ -81,10 +81,13 @@ This installs:
 
 ### MicroPython firmware
 
-1. Visit: https://micropython.org/download/ESP32_GENERIC_C3/
-2. Download the latest stable `.bin` file
-   (e.g. `ESP32_GENERIC_C3-20240602-v1.28.0.bin`)
-3. Place it in the `firmware/` directory
+Nothing to do by default: if `firmware/` contains no `.bin`, `flash.py`
+automatically downloads a pinned MicroPython build
+(`ESP32_GENERIC_C3-20260406-v1.28.0.bin`) into it on the first flash.
+
+To use a different build, download a `.bin` from
+https://micropython.org/download/ESP32_GENERIC_C3/ into `firmware/` (the
+newest file there wins), or pass its path explicitly with `--firmware PATH`.
 
 ---
 
@@ -113,12 +116,14 @@ Hold the BOOT button (below the microcontroller on the left side) while pressing
 
 Using `make` (requires GNU Make — available in Git Bash, WSL, or Chocolatey):
 ```bash
-make flash PORT=COM3 FIRMWARE=firmware/ESP32_GENERIC_C3-v1.28.0.bin
+make flash PORT=COM3                    # FIRMWARE defaults to auto-select/download
+make flash PORT=COM3 FIRMWARE=path.bin  # or explicit
 ```
 
 Using Python directly (cross-platform):
 ```bash
-python flash.py --firmware firmware/ESP32_GENERIC_C3-v1.28.0.bin
+python flash.py --firmware              # auto: newest firmware/*.bin, or download
+python flash.py --firmware path/to.bin  # or explicit
 ```
 
 ### 4. Deploy source files
@@ -134,11 +139,11 @@ python flash.py --deploy
 ### 5. Flash + deploy in one step
 
 ```bash
-make all PORT=COM3 FIRMWARE=firmware/ESP32_GENERIC_C3-v1.28.0.bin
+make all PORT=COM3      # FIRMWARE defaults to auto-select/download
 ```
 or directly:
 ```bash
-python flash.py --firmware firmware/ESP32_GENERIC_C3-v1.28.0.bin --deploy
+python flash.py --firmware --deploy
 ```
 
 Writing firmware hard-resets the board, so `flash.py` waits for MicroPython to
@@ -292,6 +297,6 @@ anyone with an ESP32 could forge them; accepted for a conference toy.
 |--------|-------------|
 | `make help` | Show usage |
 | `make erase PORT=...` | Erase device flash |
-| `make flash PORT=... FIRMWARE=...` | Erase + flash MicroPython |
+| `make flash PORT=...` | Erase + flash MicroPython (`FIRMWARE=...` optional, default auto) |
 | `make deploy PORT=...` | Copy `src/` to device filesystem |
-| `make all PORT=... FIRMWARE=...` | Flash + deploy |
+| `make all PORT=...` | Flash + deploy (`FIRMWARE=...` optional, default auto) |

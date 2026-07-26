@@ -23,6 +23,40 @@ class TestSrcFiles(unittest.TestCase):
         self.assertNotIn("ble_scanner.py", names)   # retired in rev3
 
 
+class TestResolveFirmware(unittest.TestCase):
+    def test_explicit_path_always_wins(self):
+        calls = []
+        got = flash.resolve_firmware("some/custom.bin", ["firmware/a.bin"],
+                                     download=lambda u, d: calls.append(u))
+        self.assertEqual(got, "some/custom.bin")
+        self.assertEqual(calls, [])                    # no download attempted
+
+    def test_existing_bin_used_without_download(self):
+        calls = []
+        got = flash.resolve_firmware(None,
+                                     ["firmware/ESP32_GENERIC_C3-20251209-v1.27.0.bin",
+                                      "firmware/ESP32_GENERIC_C3-20260406-v1.28.0.bin"],
+                                     download=lambda u, d: calls.append(u))
+        # newest by name (MicroPython names sort by date)
+        self.assertEqual(got, "firmware/ESP32_GENERIC_C3-20260406-v1.28.0.bin")
+        self.assertEqual(calls, [])
+
+    def test_empty_firmware_dir_downloads_pinned_url(self):
+        calls = []
+        got = flash.resolve_firmware(None, [],
+                                     download=lambda u, d: calls.append((u, d)))
+        self.assertEqual(len(calls), 1)
+        url, dest = calls[0]
+        self.assertEqual(url, flash.FIRMWARE_URL)
+        self.assertTrue(dest.endswith("ESP32_GENERIC_C3-20260406-v1.28.0.bin"))
+        self.assertEqual(got, dest)
+
+    def test_auto_keyword_behaves_like_omitted(self):
+        got = flash.resolve_firmware("auto", ["firmware/only.bin"],
+                                     download=lambda u, d: self.fail("no download"))
+        self.assertEqual(got, "firmware/only.bin")
+
+
 class TestResolvePort(unittest.TestCase):
     def test_explicit_port_always_wins(self):
         self.assertEqual(flash.resolve_port("COM7", ["COM3", "COM4"]), "COM7")

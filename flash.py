@@ -20,6 +20,12 @@ CHIP       = "esp32c3"
 FLASH_ADDR = "0x0"
 BAUD       = 460800
 
+# Pinned MicroPython build, auto-downloaded into firmware/ when the directory
+# holds no .bin (requirements.txt can't fetch arbitrary files — pip only
+# installs PyPI packages — so the download lives here).
+FIRMWARE_URL = ("https://micropython.org/resources/firmware/"
+                "ESP32_GENERIC_C3-20260406-v1.28.0.bin")
+
 # After a firmware flash the board hard-resets and re-enumerates its USB CDC,
 # which takes a few seconds (and can change the COM number). Poll for the
 # MicroPython REPL rather than deploying blindly into a mid-reboot device.
@@ -101,6 +107,36 @@ def deploy_src(port: str) -> None:
     run([sys.executable, "-m", "mpremote", "connect", port, "cp"] + files + [":"])
 
 
+def firmware_bins() -> list:
+    """MicroPython .bin files in firmware/, anchored to this script's dir."""
+    here = os.path.dirname(os.path.abspath(__file__))
+    return sorted(glob.glob(os.path.join(here, "firmware", "*.bin")))
+
+
+def _download_firmware(url: str, dest: str) -> None:
+    import urllib.request
+    print(f"\n--- Downloading MicroPython firmware ---\n    {url}")
+    urllib.request.urlretrieve(url, dest)
+    print(f"    saved to {dest}")
+
+
+def resolve_firmware(explicit, available, download=_download_firmware) -> str:
+    """Choose the firmware .bin to flash.
+
+    An explicit path wins (the literal "auto" means auto-resolve). Otherwise
+    use the newest .bin already in firmware/ (names sort by build date), and
+    if the directory is empty, download the pinned FIRMWARE_URL into it.
+    """
+    if explicit and explicit != "auto":
+        return explicit
+    if available:
+        return max(available)
+    here = os.path.dirname(os.path.abspath(__file__))
+    dest = os.path.join(here, "firmware", FIRMWARE_URL.rsplit("/", 1)[-1])
+    download(FIRMWARE_URL, dest)
+    return dest
+
+
 def _ready_port(explicit, available):
     """Which port to probe right now, or None if the device isn't back yet.
 
@@ -155,9 +191,13 @@ def main() -> None:
     )
     ap.add_argument(
         "--firmware",
+        nargs="?",
+        const="auto",
         default=None,
         metavar="PATH",
-        help="Path to MicroPython .bin to flash (triggers erase + write)",
+        help="MicroPython .bin to flash (triggers erase + write). Omit the "
+             "value to auto-select: newest .bin in firmware/, downloading the "
+             "pinned build there first if the directory is empty",
     )
     ap.add_argument(
         "--baud",
@@ -191,8 +231,9 @@ def main() -> None:
     if args.erase_only:
         erase(port, args.baud)
     elif args.firmware:
+        firmware = resolve_firmware(args.firmware, firmware_bins())
         erase(port, args.baud)
-        flash_firmware(port, args.baud, args.firmware)
+        flash_firmware(port, args.baud, firmware)
 
     if args.deploy:
         if args.firmware:

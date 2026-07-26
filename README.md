@@ -25,17 +25,47 @@ controls (used for flashing) and are not on these GPIOs.
 
 ---
 
-## Controls & visual patterns
+## Operating the badge
 
-The badge shows one **pattern** rendered with one **palette**. The two are
-independent axes — any pattern can be combined with any palette at runtime.
+Power the badge on and it starts animating immediately. It shows one
+**pattern** rendered with one **palette** — two independent axes, so any
+pattern can be combined with any palette at runtime.
 
-| Button | Action |
-|--------|--------|
-| Up (S6 / IO4) | Next pattern |
-| Down (S7 / IO3) | Tap: broadcast your pattern — nearby badges adopt it ("infect"). Hold 5s: white flash, then wireless opt-out until power cycle |
-| Left (S4 / IO0) | Previous palette |
-| Right (S5 / IO2) | Next palette |
+| Button | Location / GPIO | Action |
+|--------|-----------------|--------|
+| Up (S6) | IO4 | Next pattern |
+| Down (S7) | IO3 | Tap: infect nearby badges with your pattern. Hold 5 s: disable wireless (see below) |
+| Left (S4) | IO0 | Previous palette |
+| Right (S5) | IO2 | Next palette |
+| RESET (S2) | left of the microcontroller | Reboot the badge — restarts the app and re-enables contagion after an opt-out |
+| BOOT (S3) | below the microcontroller, left side | Flashing only: hold while pressing RESET to force download mode (usually unnecessary — `flash.py` does this itself) |
+
+### How the contagion works
+
+Tapping **Down** broadcasts your current pattern + palette over ESP-NOW;
+badges that hear it switch to match and re-broadcast, cascading up to ~3 hops
+(~1 s per hop, so it ripples through the room rather than instantly taking it
+over). Safeguards: each press has a unique id so it never loops through a
+badge twice; a badge accepts at most one press per origin every 6 s and can
+originate at most one press every 6 s; pressing **any** button ignores
+incoming broadcasts for 10 s so nobody's selection is overwritten mid-browse.
+
+**Don't want your pattern overwritten?** Hold **Down** for 5 seconds: all
+LEDs flash white for half a second, then wireless turns fully off — the badge
+keeps its look and ignores (and stops sending) all broadcasts. Press
+**RESET** (or power-cycle) to re-enable the contagion.
+
+### Updating the badge
+
+Two layers are installed separately — full details in
+[Flashing](#flashing) below:
+
+1. **MicroPython firmware** (the runtime `.bin`): `python flash.py --firmware`
+2. **The badge application** (this repo's `src/`): `python flash.py --deploy`
+
+Or both in one pass: `python flash.py --firmware --deploy`.
+
+### Patterns & palettes
 
 **Patterns** (`src/patterns.py`):
 
@@ -55,16 +85,6 @@ drives them via `leds.set_eyes()`. Default eye colour is white.
 **Palettes** (0–10 brightness scale): `rainbow`, `rip`, `ember`, `ghost`,
 `blood`, `amethyst`, `halloween`, `toxic`, `ocean`, `sunset`. Add more by
 appending to `PALETTES` in `src/patterns.py`.
-
-**Contagion** (`src/contagion.py`): tapping Down broadcasts your current
-pattern + palette over ESP-NOW; badges that hear it switch to match and
-re-broadcast, cascading up to ~3 hops (~1s per hop, so it ripples rather than
-instantly taking the room). Safeguards: each press has a unique id so it never
-loops through a badge twice; a badge accepts at most one press per origin every
-6 s and can originate at most one press every 6 s; pressing **any** button
-ignores incoming broadcasts for 10 s so nobody's selection is overwritten
-mid-browse; holding Down 5 s flashes white and turns wireless fully off until
-the next power cycle.
 
 ---
 

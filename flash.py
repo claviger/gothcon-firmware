@@ -113,19 +113,48 @@ def firmware_bins() -> list:
     return sorted(glob.glob(os.path.join(here, "firmware", "*.bin")))
 
 
-def _download_firmware(url: str, dest: str) -> None:
-    import urllib.request
+DOWNLOAD_TIMEOUT_S = 10   # fail fast when offline instead of hanging
+
+
+def _download_firmware(url: str, dest: str, opener=None) -> bool:
+    """Download url to dest. Returns False on any network failure (bounded by
+    DOWNLOAD_TIMEOUT_S) and never leaves a partial file behind: data streams
+    into dest + ".part" and is only renamed into place once complete.
+    """
+    if opener is None:
+        import urllib.request
+
+        def opener(u):
+            return urllib.request.urlopen(u, timeout=DOWNLOAD_TIMEOUT_S)
+
     print(f"\n--- Downloading MicroPython firmware ---\n    {url}")
-    urllib.request.urlretrieve(url, dest)
-    print(f"    saved to {dest}")
+    part = dest + ".part"
+    try:
+        with opener(url) as resp, open(part, "wb") as f:
+            while True:
+                chunk = resp.read(65536)
+                if not chunk:
+                    break
+                f.write(chunk)
+        os.replace(part, dest)
+        print(f"    saved to {dest}")
+        return True
+    except Exception as exc:
+        print(f"    download failed: {exc}", file=sys.stderr)
+        try:
+            os.remove(part)
+        except OSError:
+            pass
+        return False
 
 
-def resolve_firmware(explicit, available, download=_download_firmware) -> str:
-    """Choose the firmware .bin to flash.
+def resolve_firmware(explicit, available, download=_download_firmware):
+    """Choose the firmware .bin to flash, or None if none can be obtained.
 
     An explicit path wins (the literal "auto" means auto-resolve). Otherwise
     use the newest .bin already in firmware/ (names sort by build date), and
-    if the directory is empty, download the pinned FIRMWARE_URL into it.
+    if the directory is empty, try to download the pinned FIRMWARE_URL into
+    it — returning None (not raising) when that fails, e.g. offline.
     """
     if explicit and explicit != "auto":
         return explicit
@@ -133,8 +162,9 @@ def resolve_firmware(explicit, available, download=_download_firmware) -> str:
         return max(available)
     here = os.path.dirname(os.path.abspath(__file__))
     dest = os.path.join(here, "firmware", FIRMWARE_URL.rsplit("/", 1)[-1])
-    download(FIRMWARE_URL, dest)
-    return dest
+    if download(FIRMWARE_URL, dest):
+        return dest
+    return None
 
 
 def _ready_port(explicit, available):
@@ -228,15 +258,26 @@ def main() -> None:
         sys.exit(2)
     print(f"Using serial port: {port}")
 
+    flashed = False
     if args.erase_only:
         erase(port, args.baud)
     elif args.firmware:
+        # Resolve BEFORE erasing: if no firmware can be obtained (e.g. offline
+        # with an empty firmware/), skip the flash entirely rather than wiping
+        # a working badge and then having nothing to write back.
         firmware = resolve_firmware(args.firmware, firmware_bins())
-        erase(port, args.baud)
-        flash_firmware(port, args.baud, firmware)
+        if firmware is None:
+            print("warning: no firmware available (download failed — offline?); "
+                  "skipping erase + flash", file=sys.stderr)
+            if not args.deploy:
+                sys.exit(1)
+        else:
+            erase(port, args.baud)
+            flash_firmware(port, args.baud, firmware)
+            flashed = True
 
     if args.deploy:
-        if args.firmware:
+        if flashed:
             # The board just hard-reset from the flash; wait for MicroPython to
             # come back (re-detecting the port) before deploying into it.
             try:

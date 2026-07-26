@@ -43,8 +43,10 @@ class TestResolveFirmware(unittest.TestCase):
 
     def test_empty_firmware_dir_downloads_pinned_url(self):
         calls = []
-        got = flash.resolve_firmware(None, [],
-                                     download=lambda u, d: calls.append((u, d)))
+        def fake_download(u, d):
+            calls.append((u, d))
+            return True
+        got = flash.resolve_firmware(None, [], download=fake_download)
         self.assertEqual(len(calls), 1)
         url, dest = calls[0]
         self.assertEqual(url, flash.FIRMWARE_URL)
@@ -55,6 +57,66 @@ class TestResolveFirmware(unittest.TestCase):
         got = flash.resolve_firmware("auto", ["firmware/only.bin"],
                                      download=lambda u, d: self.fail("no download"))
         self.assertEqual(got, "firmware/only.bin")
+
+    def test_failed_download_resolves_to_none(self):
+        # Offline: auto-resolution reports "nothing to flash" instead of raising.
+        got = flash.resolve_firmware(None, [], download=lambda u, d: False)
+        self.assertIsNone(got)
+
+
+class _FakeResponse:
+    """Context-managed fake for urllib's response object."""
+
+    def __init__(self, chunks, fail_after=None):
+        self._chunks = list(chunks)
+        self._fail_after = fail_after
+        self._reads = 0
+
+    def read(self, n):
+        if self._fail_after is not None and self._reads >= self._fail_after:
+            raise OSError("connection reset")
+        self._reads += 1
+        return self._chunks.pop(0) if self._chunks else b""
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+
+class TestDownloadFirmware(unittest.TestCase):
+    def test_success_writes_dest_atomically(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            dest = os.path.join(tmp, "fw.bin")
+            ok = flash._download_firmware(
+                "http://x/fw.bin", dest,
+                opener=lambda u: _FakeResponse([b"abc", b"def"]))
+            self.assertTrue(ok)
+            with open(dest, "rb") as f:
+                self.assertEqual(f.read(), b"abcdef")
+            self.assertEqual(os.listdir(tmp), ["fw.bin"])   # no .part left
+
+    def test_failure_leaves_no_partial_file(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            dest = os.path.join(tmp, "fw.bin")
+            ok = flash._download_firmware(
+                "http://x/fw.bin", dest,
+                opener=lambda u: _FakeResponse([b"abc"], fail_after=1))
+            self.assertFalse(ok)
+            self.assertEqual(os.listdir(tmp), [])           # dest AND .part gone
+
+    def test_unreachable_host_fails_cleanly(self):
+        import tempfile
+        def no_route(url):
+            raise OSError("no route to host")
+        with tempfile.TemporaryDirectory() as tmp:
+            dest = os.path.join(tmp, "fw.bin")
+            self.assertFalse(flash._download_firmware("http://x/fw.bin", dest,
+                                                      opener=no_route))
+            self.assertEqual(os.listdir(tmp), [])
 
 
 class TestResolvePort(unittest.TestCase):

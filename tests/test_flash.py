@@ -108,6 +108,17 @@ class TestDownloadFirmware(unittest.TestCase):
             self.assertFalse(ok)
             self.assertEqual(os.listdir(tmp), [])           # dest AND .part gone
 
+    def test_creates_missing_destination_directory(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            dest = os.path.join(tmp, "not", "yet", "here", "fw.bin")
+            ok = flash._download_firmware(
+                "http://x/fw.bin", dest,
+                opener=lambda u: _FakeResponse([b"abc"]))
+            self.assertTrue(ok)
+            with open(dest, "rb") as f:
+                self.assertEqual(f.read(), b"abc")
+
     def test_unreachable_host_fails_cleanly(self):
         import tempfile
         def no_route(url):

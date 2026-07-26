@@ -130,6 +130,7 @@ def _download_firmware(url: str, dest: str, opener=None) -> bool:
     print(f"\n--- Downloading MicroPython firmware ---\n    {url}")
     part = dest + ".part"
     try:
+        os.makedirs(os.path.dirname(dest), exist_ok=True)
         with opener(url) as resp, open(part, "wb") as f:
             while True:
                 chunk = resp.read(65536)

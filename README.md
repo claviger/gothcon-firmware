@@ -5,7 +5,8 @@ MicroPython firmware for an ESP32-C3 with:
 - 44 WS2812B (NeoPixel) addressable RGB LEDs on IO10 — including two "bat eye"
   LEDs (indices **28** and **30**) driven independently of the animated body
 - A library of colour-agnostic **patterns** combined with selectable **palettes**
-- BLE active scanner capturing SCAN_RSP packets
+- A wireless **contagion** effect (ESP-NOW): tap Down and nearby badges adopt
+  your pattern + palette, cascading a few hops through the room
 
 ---
 
@@ -32,7 +33,7 @@ independent axes — any pattern can be combined with any palette at runtime.
 | Button | Action |
 |--------|--------|
 | Up (S6 / IO4) | Next pattern |
-| Down (S7 / IO3) | Toggle BLE scan (solid blue while scanning; pattern resumes on stop) |
+| Down (S7 / IO3) | Tap: broadcast your pattern — nearby badges adopt it ("infect"). Hold 5s: white flash, then wireless opt-out until power cycle |
 | Left (S4 / IO0) | Previous palette |
 | Right (S5 / IO2) | Next palette |
 
@@ -54,6 +55,16 @@ drives them via `leds.set_eyes()`. Default eye colour is white.
 **Palettes** (0–10 brightness scale): `rainbow`, `rip`, `ember`, `ghost`,
 `blood`, `amethyst`, `halloween`, `toxic`, `ocean`, `sunset`. Add more by
 appending to `PALETTES` in `src/patterns.py`.
+
+**Contagion** (`src/contagion.py`): tapping Down broadcasts your current
+pattern + palette over ESP-NOW; badges that hear it switch to match and
+re-broadcast, cascading up to ~3 hops (~1s per hop, so it ripples rather than
+instantly taking the room). Safeguards: each press has a unique id so it never
+loops through a badge twice; a badge accepts at most one press per origin every
+6 s and can originate at most one press every 6 s; pressing **any** button
+ignores incoming broadcasts for 10 s so nobody's selection is overwritten
+mid-browse; holding Down 5 s flashes white and turns wireless fully off until
+the next power cycle.
 
 ---
 
@@ -162,10 +173,11 @@ esp32c3-firmware/
 │   ├── buttons.py        # GPIO interrupt + debounce (Up/Down/Left/Right)
 │   ├── leds.py           # WS2812B NeoPixel driver (IO10, 44 LEDs + eyes)
 │   ├── patterns.py       # Pattern/palette library (two independent axes)
-│   └── ble_scanner.py    # BLE active scan + SCAN_RSP capture
+│   └── contagion.py      # ESP-NOW pattern contagion (burst TX, duty-cycled RX)
 └── tests/                # Host-side (CPython) unit tests — not deployed to device
-    ├── harness.py        # Fake strip/pins/clock + sys.path setup
+    ├── harness.py        # Fake strip/pins/clock/radio + sys.path setup
     ├── test_buttons.py
+    ├── test_contagion.py
     ├── test_flash.py
     ├── test_leds.py
     └── test_patterns.py
@@ -173,9 +185,10 @@ esp32c3-firmware/
 
 ### Running the tests
 
-The `leds`, `patterns`, and `buttons` modules are importable on a host PC (the
-MicroPython hardware imports are deferred, and the test harness fakes `machine`,
-`micropython`, and `utime`), so their logic is covered by plain `unittest`:
+The `leds`, `patterns`, `buttons`, and `contagion` modules are importable on a
+host PC (the MicroPython hardware imports are deferred, and the test harness
+fakes `machine`, `micropython`, `network`, `espnow`, and `utime`), so their
+logic is covered by plain `unittest`:
 
 ```bash
 python -B -m unittest discover -s tests
@@ -243,27 +256,33 @@ patterns.tick(pattern_i, palette_j, t_ms)    # advance; no-op for static pattern
 Changing either axis simply re-calls `activate(...)`, so the running pattern
 always reflects the currently selected palette.
 
-### `ble_scanner`
+### `contagion`
 
 ```python
-import ble_scanner
+import contagion
 
-ble_scanner.init()  # Power on BLE radio
+contagion.init(pattern_count, palette_count)  # radio up on CHANNEL, reset state
 
-# With callback (fires for each SCAN_RSP packet):
-def on_rsp(addr_type, addr, rssi, adv_data):
-    name = ble_scanner.parse_ad_structures(adv_data).get(0x09, b'')
-    print(ble_scanner.format_addr(addr), rssi, name)
-
-ble_scanner.start_scan(on_scan_rsp=on_rsp)
-
-# Without callback — accumulates results:
-ble_scanner.start_scan()
-# ... wait ...
-ble_scanner.stop_scan()
-for rec in ble_scanner.get_results():
-    print(rec)
+# Every main-loop tick:
+infected = contagion.service(t_ms)     # -> (pattern, palette) or None
+contagion.broadcast(p, q, t_ms)        # tap: burst our look (False if in cooldown)
+contagion.notify_user_activity(t_ms)   # any button press: mute infections 10s
+contagion.opt_out()                    # radio hard off until power cycle
+contagion.is_enabled()
 ```
+
+Packet (13 bytes, broadcast to `ff:ff:ff:ff:ff:ff` on WiFi channel 1):
+`magic 0xC7 · version · origin MAC (6) · seq (u16) · TTL · pattern · palette`.
+Received packets are validated (length/magic/version/TTL/index bounds),
+deduplicated by `(origin, seq)` for 60 s, and re-broadcast with TTL−1 after a
+0–300 ms jitter while TTL > 1.
+
+**Battery:** the radio listens only ~150 ms per second (~15% duty); senders
+repeat each packet 16× spaced 80 ms so the burst spans any listen window.
+Estimated cost ≈ +13 mA on a ~55 mA baseline → ~29 h on the 2000 mAh pack
+(requirement: ≥24 h). All timing constants sit at the top of `contagion.py`
+and are expected to be tuned on real hardware. Packets are unauthenticated —
+anyone with an ESP32 could forge them; accepted for a conference toy.
 
 ---
 

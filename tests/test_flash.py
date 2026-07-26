@@ -18,8 +18,9 @@ class TestSrcFiles(unittest.TestCase):
     def test_includes_the_known_modules(self):
         names = {os.path.basename(f) for f in flash.src_files()}
         for expected in ("main.py", "leds.py", "patterns.py", "buttons.py",
-                         "ble_scanner.py"):
+                         "contagion.py"):
             self.assertIn(expected, names)
+        self.assertNotIn("ble_scanner.py", names)   # retired in rev3
 
 
 class TestResolvePort(unittest.TestCase):

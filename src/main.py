@@ -1,14 +1,13 @@
 # main.py — ESP32-C3 firmware entry point
 #
-# Wires together buttons, LEDs, BLE scanner, and the pattern library.
-# Runs at boot automatically when deployed to the device filesystem.
+# Wires together buttons, LEDs, the pattern library, and the wireless
+# contagion effect. Runs at boot automatically when deployed to the device.
 
 import utime
-import machine
 import buttons
 import leds
-import ble_scanner
 import patterns
+import contagion
 
 
 # ---------------------------------------------------------------------------
@@ -18,12 +17,14 @@ import patterns
 leds.init()
 utime.sleep_ms(500)
 patterns.activate(0, 0)   # start on the first pattern + first palette
+contagion.init(patterns.pattern_count(), patterns.palette_count())
 
 
 # ---------------------------------------------------------------------------
 # Button callbacks
 # Up    (S6, IO4) → next pattern
-# Down  (S7, IO3) → BLE scan toggle (function will be rewritten later)
+# Down  (S7, IO3) → tap: broadcast pattern to nearby badges ("infect")
+#                   hold 5s: wireless opt-out (until power cycle)
 # Left  (S4, IO0) → previous palette
 # Right (S5, IO2) → next palette
 #
@@ -34,6 +35,7 @@ patterns.activate(0, 0)   # start on the first pattern + first palette
 _pending         = None   # set by ISR, consumed by main loop
 _current_pattern = 0
 _current_palette = 0
+_down_held_since = None   # ticks_ms when Down went low; None = not watching
 
 
 def on_btn_up(pin_num):
@@ -43,9 +45,9 @@ def on_btn_up(pin_num):
 
 
 def on_btn_down(pin_num):
-    """Down (S7) — BLE scan toggle."""
+    """Down (S7) — start the tap-vs-hold watcher."""
     global _pending
-    _pending = "ble_toggle"
+    _pending = "down_press"
 
 
 def on_btn_left(pin_num):
@@ -65,14 +67,6 @@ print("[main] Buttons registered: Up=IO4 Down=IO3 Left=IO0 Right=IO2")
 
 
 # ---------------------------------------------------------------------------
-# BLE active scan — started on demand by Down (S7, IO3), not at boot
-# ---------------------------------------------------------------------------
-
-_ble_initialized = False
-_ble_scanning    = False
-
-
-# ---------------------------------------------------------------------------
 # Main loop — keep firmware alive; all work is interrupt/callback driven
 # ---------------------------------------------------------------------------
 
@@ -80,9 +74,14 @@ print("[main] System ready. Pattern 0: {} / palette 0: {}".format(
     patterns.pattern_name(0), patterns.palette_name(0)))
 
 while True:
+    now = utime.ticks_ms()
+
     if _pending is not None:
         action   = _pending
         _pending = None
+        # Any button interaction mutes incoming infections for a grace period
+        # so nobody's selection gets overwritten mid-browse.
+        contagion.notify_user_activity(now)
 
         if action == "next_pattern":
             _current_pattern = (_current_pattern + 1) % patterns.pattern_count()
@@ -99,37 +98,41 @@ while True:
             print("[btn] Right — palette {}: {}".format(_current_palette, patterns.palette_name(_current_palette)))
             patterns.activate(_current_pattern, _current_palette)
 
-        elif action == "ble_toggle":
-            if not _ble_scanning:
-                if not _ble_initialized:
-                    ble_scanner.init()
-                    _ble_initialized = True
-                print("[btn] Down — starting BLE scan")
-                ble_scanner.start_scan(interval_us=100_000, window_us=10_000)
-                _ble_scanning = True
-                leds.set_all(0, 0, 7)   # dim blue = scanning
-                leds.write()
-            else:
-                print("[btn] Down — stopping BLE scan, results:")
-                ble_scanner.stop_scan()
-                _ble_scanning = False
-                results = ble_scanner.get_results()
-                if not results:
-                    print("  (no SCAN_RSP packets captured)")
-                for rec in results:
-                    addr_str = ble_scanner.format_addr(rec["addr"])
-                    ad       = ble_scanner.parse_ad_structures(rec["data"])
-                    dev_name = ad.get(0x09, ad.get(0x08, b"")).decode("utf-8", "ignore")
-                    print("  {}  rssi={:4d}  name='{}'  raw={}".format(
-                        addr_str, rec["rssi"], dev_name, rec["data"].hex()))
-                # resume the current pattern/palette where scanning left off
-                patterns.activate(_current_pattern, _current_palette)
+        elif action == "down_press":
+            if _down_held_since is None:
+                _down_held_since = now
 
-    # Pause animation while scanning so the solid-blue indicator isn't overwritten.
-    if not _ble_scanning:
-        patterns.tick(_current_pattern, _current_palette, utime.ticks_ms())
+    # Down tap-vs-hold watcher: release before the hold threshold broadcasts
+    # our look; holding to the threshold opts out of wireless until reboot.
+    if _down_held_since is not None:
+        held_ms = utime.ticks_diff(now, _down_held_since)
+        if not buttons.is_pressed(buttons.PIN_DOWN):
+            _down_held_since = None
+            if held_ms < contagion.OPTOUT_HOLD_MS:
+                if contagion.broadcast(_current_pattern, _current_palette, now):
+                    print("[btn] Down — broadcasting pattern {} / palette {}".format(
+                        patterns.pattern_name(_current_pattern),
+                        patterns.palette_name(_current_palette)))
+        elif held_ms >= contagion.OPTOUT_HOLD_MS:
+            _down_held_since = None
+            print("[btn] Down held {}ms — wireless opt-out until power cycle".format(held_ms))
+            leds.set_all_and_show(10, 10, 10)         # confirm: all white...
+            utime.sleep_ms(contagion.OPTOUT_FLASH_MS)  # ...for half a second
+            contagion.opt_out()
+            patterns.activate(_current_pattern, _current_palette)
+
+    # Wireless: run the listen/burst scheduler and adopt any incoming look.
+    infected = contagion.service(now)
+    if infected is not None:
+        _current_pattern, _current_palette = infected
+        print("[rf] infected — pattern {}: {} / palette {}: {}".format(
+            _current_pattern, patterns.pattern_name(_current_pattern),
+            _current_palette, patterns.palette_name(_current_palette)))
+        patterns.activate(_current_pattern, _current_palette)
+
+    patterns.tick(_current_pattern, _current_palette, now)
     # Animation tick granularity: no pattern can advance faster than this, so it
     # sets the floor on every *_STEP_MS in patterns.py. 50ms matches the fastest
     # pattern (psychedelic) and keeps wakeups low for battery/lightsleep use.
-    #machine.lightsleep(100)
+    #machine.lightsleep(100)   # (re-add `import machine` when enabling this)
     utime.sleep_ms(50)

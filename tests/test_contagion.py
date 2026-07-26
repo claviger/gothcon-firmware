@@ -1,7 +1,9 @@
 # test_contagion.py — ESP-NOW contagion protocol: packet format, dedup,
 # cooldowns, interaction mute, TTL/relay, burst + listen-window scheduling.
 
+import os
 import random
+import re
 import unittest
 
 import harness  # noqa: F401  (sets sys.path, installs fake utime/machine/network/espnow)
@@ -15,6 +17,21 @@ MAC_B = b"\xbb\xbb\xbb\xbb\xbb\x02"
 
 def pkt(origin=MAC_A, seq=1, ttl=3, pattern=2, palette=5):
     return contagion.pack(origin, seq, ttl, pattern, palette)
+
+
+class TestMainIntegration(unittest.TestCase):
+    def test_every_contagion_reference_in_main_exists(self):
+        """main.py can't be imported by tests (infinite loop), so statically
+        verify every `contagion.<name>` it references actually exists —
+        a missing constant otherwise only crashes on the badge."""
+        main_path = os.path.join(os.path.dirname(__file__), "..", "src", "main.py")
+        with open(main_path) as f:
+            source = f.read()
+        names = set(re.findall(r"\bcontagion\.(\w+)", source))
+        self.assertTrue(names, "expected main.py to use the contagion module")
+        for name in sorted(names):
+            self.assertTrue(hasattr(contagion, name),
+                            "main.py references contagion.%s which does not exist" % name)
 
 
 class TestPackUnpack(unittest.TestCase):

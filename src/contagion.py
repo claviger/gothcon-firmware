@@ -35,6 +35,8 @@ COOLDOWN_MS         = 6000     # min gap between presses (local and per-origin)
 DEDUP_TTL_MS        = 60_000   # how long a (origin, seq) id is remembered
 RELAY_JITTER_MAX_MS = 300      # random relay delay to avoid collision storms
 INTERACTION_MUTE_MS = 10_000   # ignore infections after any local button press
+OPTOUT_HOLD_MS      = 5000     # hold Down this long to opt out of wireless
+OPTOUT_FLASH_MS     = 500      # white confirmation flash on opt-out
 
 _MAGIC   = 0xC7
 _VERSION = 0x01

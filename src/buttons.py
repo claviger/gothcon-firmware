@@ -81,6 +81,17 @@ def register_all(cb_up, cb_down, cb_left, cb_right) -> None:
     register(PIN_RIGHT, cb_right)
 
 
+def is_pressed(pin_num: int) -> bool:
+    """True while the button is held down right now (active-low: pin reads 0).
+
+    Complements the edge-triggered callbacks — lets the main loop poll for
+    hold/release (e.g. the 5s wireless opt-out hold). False for pins that
+    were never registered.
+    """
+    p = _pins.get(pin_num)
+    return p is not None and p.value() == 0
+
+
 def unregister(pin_num: int) -> None:
     """Detach the IRQ and remove the callback for a button."""
     p = _pins.pop(pin_num, None)

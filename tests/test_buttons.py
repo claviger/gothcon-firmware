@@ -71,6 +71,17 @@ class TestRegisterAll(unittest.TestCase):
         FakePin.instances[buttons.PIN_RIGHT].press()   # still works
         self.assertEqual(self.presses, [("right", buttons.PIN_RIGHT)])
 
+    def test_is_pressed_reflects_active_low_pin_level(self):
+        fake_utime.advance(100)
+        self.assertFalse(buttons.is_pressed(buttons.PIN_DOWN))   # idle = high
+        FakePin.instances[buttons.PIN_DOWN].hold()               # held low
+        self.assertTrue(buttons.is_pressed(buttons.PIN_DOWN))
+        FakePin.instances[buttons.PIN_DOWN].release()
+        self.assertFalse(buttons.is_pressed(buttons.PIN_DOWN))
+
+    def test_is_pressed_false_for_unregistered_pin(self):
+        self.assertFalse(buttons.is_pressed(99))
+
 
 if __name__ == "__main__":
     unittest.main()

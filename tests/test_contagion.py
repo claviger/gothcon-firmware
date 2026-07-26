@@ -91,13 +91,37 @@ class TestInitAndScheduler(_Radio):
         self.assertIn(b"\xff" * 6, self.now.peers)
         self.assertTrue(contagion.is_enabled())
 
-    def test_radio_on_during_listen_window_off_outside(self):
-        contagion.service(10_000)          # phase 0 — inside window
+    def test_radio_stays_active_continuously(self):
+        # Duty-cycling wlan.active() at 1Hz froze badges overnight (wifi
+        # driver instability); the radio now stays up for the whole session.
+        contagion.service(10_000)
         self.assertTrue(self.wlan.is_active)
-        contagion.service(10_000 + contagion.LISTEN_MS + 50)   # outside
-        self.assertFalse(self.wlan.is_active)
-        contagion.service(11_000)          # next window
+        contagion.service(10_000 + contagion.LISTEN_MS + 50)
         self.assertTrue(self.wlan.is_active)
+        contagion.service(11_000)
+        self.assertTrue(self.wlan.is_active)
+
+    def test_packets_processed_at_any_phase(self):
+        # With the radio always on there are no deaf phases: a packet arriving
+        # outside the (legacy) listen window is picked up immediately.
+        t = 10_000 + contagion.LISTEN_MS + 70    # outside the old window
+        self.rx(pkt())
+        self.assertEqual(contagion.service(t), (2, 5))
+
+    def test_gc_collect_runs_periodically(self):
+        collects = []
+        real_gc = contagion.gc
+        contagion.gc = type("FakeGC", (), {"collect":
+                            staticmethod(lambda: collects.append(1))})()
+        try:
+            t = 10_000
+            while t < 10_000 + 3 * contagion.LISTEN_PERIOD_MS:
+                contagion.service(t)
+                t += 50
+        finally:
+            contagion.gc = real_gc
+        self.assertGreaterEqual(len(collects), 3)
+        self.assertLessEqual(len(collects), 4)
 
     def test_radio_held_on_during_burst_outside_window(self):
         contagion.broadcast(1, 1, 10_000)

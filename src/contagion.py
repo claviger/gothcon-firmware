@@ -6,10 +6,14 @@
 # Design notes:
 #   * Transport is ESP-NOW broadcast (ff:ff:ff:ff:ff:ff) on a pinned WiFi
 #     channel — connectionless, ~1ms airtime, loss-tolerant by design.
-#   * Battery: the radio listens only LISTEN_MS out of every LISTEN_PERIOD_MS.
-#     Senders compensate by repeating each packet as a BURST whose span exceeds
-#     the listen period, so every unsynchronised receiver window catches >=1
-#     copy. Bursts hold the radio on for their duration.
+#   * Radio: stays active for the whole session. The original design duty-
+#     cycled wlan.active() at ~1Hz to save battery, but ~40k driver start/stop
+#     cycles overnight froze badges (wifi driver instability / heap
+#     fragmentation), so cycling is disabled until a gentler scheme is proven.
+#     Senders still repeat each packet as a BURST — cheap redundancy against
+#     loss, and required again if duty-cycling ever returns.
+#   * gc.collect() runs once per LISTEN_PERIOD_MS to curb heap fragmentation
+#     from per-tick allocations on long uptimes.
 #   * This module never imports patterns/leds — it deals purely in indices;
 #     main.py owns applying them. No ISR/irq callbacks: main.py's loop calls
 #     service(t_ms) every tick and we poll recv with a zero timeout.
@@ -20,14 +24,16 @@
 # Host tests fake `network`/`espnow` (see tests/harness.py); the imports are
 # deferred into init() like leds.py so the pure helpers need no radio at all.
 
+import gc
 import struct
 import random
 import utime
 
 # --- tunable constants (expected to be tuned on real hardware) --------------
 CHANNEL             = 1        # all badges must share this WiFi channel
-LISTEN_MS           = 150      # radio-on listen window...
-LISTEN_PERIOD_MS    = 1000     # ...once per this period (~15% duty cycle)
+LISTEN_MS           = 150      # (unused while duty-cycling is disabled — kept
+LISTEN_PERIOD_MS    = 1000     #  with the burst invariant for its possible
+                               #  return; period also paces gc.collect())
 BURST_REPEATS       = 16       # copies of each packet sent per burst
 BURST_SPACING_MS    = 80       # gap between copies (span 1.28s > listen period)
 TTL_INITIAL         = 3        # hop depth: origin + ~3 hops of cascade
@@ -48,8 +54,8 @@ _BCAST   = b"\xff" * 6
 _wlan    = None
 _espnow  = None
 _enabled = False
-_radio_on = False
 _mac     = b"\x00" * 6
+_last_gc_ms = None             # paces the periodic gc.collect()
 _counts  = (0, 0)              # (pattern_count, palette_count)
 _seq     = 0
 _last_broadcast_ms = None      # local tap cooldown
@@ -86,8 +92,9 @@ def unpack(data, pattern_count: int, palette_count: int):
 
 def init(pattern_count: int, palette_count: int) -> None:
     """Bring the radio up on the pinned channel and reset all protocol state."""
-    global _wlan, _espnow, _enabled, _radio_on, _mac, _counts, _seq
+    global _wlan, _espnow, _enabled, _mac, _counts, _seq
     global _last_broadcast_ms, _mute_until_ms, _dedup, _origin_last, _burst
+    global _last_gc_ms
     import network                        # MicroPython-only; deferred for host tests
     import espnow
 
@@ -98,6 +105,7 @@ def init(pattern_count: int, palette_count: int) -> None:
     _dedup = {}
     _origin_last = {}
     _burst = None
+    _last_gc_ms = None
 
     _wlan = network.WLAN(network.STA_IF)
     _wlan.active(True)
@@ -108,19 +116,17 @@ def init(pattern_count: int, palette_count: int) -> None:
     _espnow.active(True)
     _espnow.add_peer(_BCAST)
     _enabled = True
-    _radio_on = True                      # scheduler turns it off next service()
 
 
 def opt_out() -> None:
     """User held Down 5s: radio hard off, ignore wireless until power cycle."""
-    global _enabled, _radio_on, _burst
+    global _enabled, _burst
     _enabled = False
     _burst = None
     if _espnow is not None:
         _espnow.active(False)
     if _wlan is not None:
         _wlan.active(False)
-    _radio_on = False
 
 
 def is_enabled() -> bool:
@@ -166,20 +172,13 @@ def service(t_ms: int):
     packets. Returns (pattern, palette) if this badge was newly infected,
     else None. Call every main-loop iteration.
     """
-    global _radio_on, _burst
+    global _burst, _last_gc_ms
     if not _enabled:
         return None
 
-    # Radio duty cycle: on during the listen window, or while a burst runs.
-    # (t % period is not tick-wraparound-safe, but the wrap glitches one
-    # window every ~12 days of uptime — harmless for a lossy protocol.)
-    want_on = (t_ms % LISTEN_PERIOD_MS) < LISTEN_MS or _burst is not None
-    if want_on != _radio_on:
-        _set_radio(want_on)
-
-    infected = None
-    if _radio_on:
-        infected = _drain(t_ms)
+    # The radio stays up continuously (duty-cycling wlan.active() at 1Hz froze
+    # badges overnight — see module header), so just drain whatever arrived.
+    infected = _drain(t_ms)
 
     # Emit any burst packets that have come due.
     while _burst is not None and utime.ticks_diff(t_ms, _burst["next_ms"]) >= 0:
@@ -190,15 +189,13 @@ def service(t_ms: int):
         else:
             _burst["next_ms"] += BURST_SPACING_MS
 
+    # Heap hygiene: long uptimes + per-tick allocations fragment MicroPython's
+    # heap; a periodic collect keeps it compacted.
+    if _last_gc_ms is None or utime.ticks_diff(t_ms, _last_gc_ms) >= LISTEN_PERIOD_MS:
+        _last_gc_ms = t_ms
+        gc.collect()
+
     return infected
-
-
-def _set_radio(on: bool) -> None:
-    global _radio_on
-    _wlan.active(on)
-    if on:
-        _wlan.config(channel=CHANNEL)     # some ports forget the channel on re-init
-    _radio_on = on
 
 
 def _drain(t_ms: int):

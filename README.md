@@ -302,12 +302,16 @@ Received packets are validated (length/magic/version/TTL/index bounds),
 deduplicated by `(origin, seq)` for 60 s, and re-broadcast with TTL−1 after a
 0–300 ms jitter while TTL > 1.
 
-**Battery:** the radio listens only ~150 ms per second (~15% duty); senders
-repeat each packet 16× spaced 80 ms so the burst spans any listen window.
-Estimated cost ≈ +13 mA on a ~55 mA baseline → ~29 h on the 2000 mAh pack
-(requirement: ≥24 h). All timing constants sit at the top of `contagion.py`
-and are expected to be tuned on real hardware. Packets are unauthenticated —
-anyone with an ESP32 could forge them; accepted for a conference toy.
+**Battery / stability:** the radio stays active for the whole session. The
+original design duty-cycled `wlan.active()` at ~1 Hz to save power, but the
+~40k driver start/stop cycles per night froze badges (wifi driver
+instability), so cycling is disabled pending a gentler scheme; `gc.collect()`
+runs once a second to curb heap fragmentation. Senders still repeat each
+packet 16× spaced 80 ms — cheap redundancy against loss. Battery impact of
+the always-on radio is being measured on hardware (requirement: ≥24 h on the
+2000 mAh pack). All timing constants sit at the top of `contagion.py`.
+Packets are unauthenticated — anyone with an ESP32 could forge them;
+accepted for a conference toy.
 
 ---
 

@@ -122,7 +122,11 @@ newest file there wins), or pass its path explicitly with `--firmware PATH`.
 
 Download the code from this site (either using "Download ZIP" under the code dropdown on
 this page, or just git cloning the repo. Make sure Python 3.11 or higher is installed,
-and python and pip are on your path. CD into the repo folder.
+and python and pip are on your path. CD into the repo folder and run
+```
+pip install -r requirements.txt
+```
+to get the ESP32 tools & drivers.
 
 ### 2. Flash MicroPython
 
@@ -135,24 +139,16 @@ python flash.py --firmware              # auto: newest firmware/*.bin, or downlo
 python flash.py --firmware path/to.bin  # or explicit
 ```
 
-### 3. Deploy the badge application
-
-```bash
-python flash.py --deploy
-```
-
-### 4. Flash + deploy in one step
-
-```bash
-python flash.py --firmware --deploy
-```
-
 Writing firmware hard-resets the board, so `flash.py` waits for MicroPython to
 reboot — re-detecting the serial port, which can change on re-enumeration —
 before deploying. No manual RESET press is usually needed, but if it hangs, just press
 RESET.
 
----
+### 3. Deploy the badge application
+
+```bash
+python flash.py --deploy
+```
 
 ## REPL access (terminal, to see debug output)
 

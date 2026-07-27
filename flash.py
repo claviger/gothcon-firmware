@@ -7,6 +7,7 @@ Usage:
     python flash.py --erase-only --port /dev/ttyACM0
     python flash.py --port COM3 --deploy
     python flash.py --port COM3 --firmware firmware/micropython.bin --deploy
+    python flash.py --continuous      # batch-flash badges as they are plugged in
 """
 
 import argparse
@@ -211,6 +212,68 @@ def wait_for_micropython(explicit, timeout=READY_TIMEOUT_S,
         time.sleep(PROBE_INTERVAL_S)
 
 
+def wait_for_new_port(baseline, list_ports=None, sleep=time.sleep) -> str:
+    """Block until a serial port not in `baseline` appears; return its name.
+
+    Baseline-aware so PCs with other permanent COM devices don't confuse the
+    detector. No timeout by design — Ctrl+C ends a batch session.
+    """
+    if list_ports is None:
+        list_ports = available_ports
+    while True:
+        fresh = [p for p in list_ports() if p not in baseline]
+        if fresh:
+            return fresh[0]
+        sleep(PROBE_INTERVAL_S)
+
+
+def wait_for_disconnect(port, list_ports=None, sleep=time.sleep) -> None:
+    """Block until `port` disappears from the system (badge unplugged)."""
+    if list_ports is None:
+        list_ports = available_ports
+    while port in list_ports():
+        sleep(PROBE_INTERVAL_S)
+
+
+def continuous_flash(baud: int, firmware: str) -> None:
+    """Batch mode: flash + deploy each badge as it is plugged in, forever.
+
+    Cycle: detect badge -> erase + flash -> wait for MicroPython -> deploy ->
+    wait for unplug -> wait for the next badge. A failed badge is reported and
+    skipped rather than ending the session. Ctrl+C to stop.
+    """
+    done = 0
+    print("\n=== Continuous flashing mode — press Ctrl+C to stop ===")
+    print("Plug in a badge to begin. On a PC with other COM devices, plug the"
+          "\nbadge in AFTER this message so it is detected as the new port.")
+    try:
+        while True:
+            others = set(available_ports())
+            ports = list(others)
+            if len(ports) == 1:
+                target = ports[0]          # sole port: badge already plugged
+                others = set()
+            else:
+                print(f"\n[{done} done] Waiting for a badge to be plugged in...")
+                target = wait_for_new_port(others)
+            print(f"\n=== Badge detected on {target} ===")
+            try:
+                erase(target, baud)
+                flash_firmware(target, baud, firmware)
+                # Post-flash the port can renumber; re-detect against the
+                # other (non-badge) ports when there are any.
+                target = wait_for_micropython(target if others else None)
+                deploy_src(target)
+                done += 1
+                print(f"\n=== Badge #{done} complete — unplug it ===")
+            except (SystemExit, TimeoutError) as exc:
+                print(f"\n!!! This badge FAILED ({exc}) — unplug it, check it, "
+                      "and re-plug to retry", file=sys.stderr)
+            wait_for_disconnect(target)
+    except KeyboardInterrupt:
+        print(f"\nStopped. {done} badge(s) flashed and deployed.")
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(
         description="Flash MicroPython firmware and deploy source to ESP32-C3."
@@ -246,7 +309,28 @@ def main() -> None:
         action="store_true",
         help="Copy src/ to device filesystem after flash (uses mpremote)",
     )
+    ap.add_argument(
+        "--continuous",
+        action="store_true",
+        help="Batch mode: flash + deploy every badge as it is plugged in, "
+             "waiting for unplug/replug between badges. Ctrl+C to stop. "
+             "Implies --deploy; --firmware optional (auto-resolved).",
+    )
     args = ap.parse_args()
+
+    if args.continuous:
+        if args.erase_only:
+            print("error: --continuous and --erase-only are incompatible",
+                  file=sys.stderr)
+            sys.exit(2)
+        firmware = resolve_firmware(args.firmware or "auto", firmware_bins())
+        if firmware is None:
+            print("error: no firmware available (download failed — offline?); "
+                  "cannot start continuous mode", file=sys.stderr)
+            sys.exit(1)
+        print(f"Firmware for this session: {firmware}")
+        continuous_flash(args.baud, firmware)
+        return
 
     if not args.firmware and not args.erase_only and not args.deploy:
         ap.print_help()

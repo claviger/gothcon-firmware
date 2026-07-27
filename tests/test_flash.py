@@ -146,6 +146,36 @@ class TestResolvePort(unittest.TestCase):
             flash.resolve_port(None, ["COM3", "COM4"])
 
 
+class TestContinuousWaits(unittest.TestCase):
+    """Port-watching primitives for --continuous batch flashing."""
+
+    @staticmethod
+    def scripted(*snapshots):
+        """list_ports fake yielding successive port-list snapshots."""
+        seq = list(snapshots)
+        return lambda: seq.pop(0) if len(seq) > 1 else seq[0]
+
+    def test_wait_for_new_port_returns_the_appeared_port(self):
+        naps = []
+        got = flash.wait_for_new_port(set(), list_ports=self.scripted([], [], ["COM5"]),
+                                      sleep=naps.append)
+        self.assertEqual(got, "COM5")
+        self.assertEqual(len(naps), 2)          # polled twice before it appeared
+
+    def test_wait_for_new_port_ignores_baseline_ports(self):
+        got = flash.wait_for_new_port({"COM3"},
+                                      list_ports=self.scripted(["COM3"], ["COM3", "COM7"]),
+                                      sleep=lambda s: None)
+        self.assertEqual(got, "COM7")
+
+    def test_wait_for_disconnect_returns_once_port_vanishes(self):
+        naps = []
+        flash.wait_for_disconnect("COM5",
+                                  list_ports=self.scripted(["COM5"], ["COM5"], []),
+                                  sleep=naps.append)
+        self.assertEqual(len(naps), 2)
+
+
 class TestReadyPort(unittest.TestCase):
     def test_explicit_port_used_when_present(self):
         self.assertEqual(flash._ready_port("COM5", ["COM5", "COM6"]), "COM5")

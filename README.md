@@ -150,6 +150,21 @@ RESET.
 python flash.py --deploy
 ```
 
+### Flashing many badges in a row
+
+```bash
+python flash.py --continuous
+```
+
+Batch mode for provisioning a stack of badges with minimal PC interaction:
+plug a badge in and it is flashed + deployed automatically; unplug it when
+told, plug in the next, repeat. Progress is counted per badge, a failed badge
+is reported and skipped (unplug, check it, re-plug to retry), and **Ctrl+C**
+ends the session. Firmware is resolved once up front (auto-download included),
+so later badges never wait on the network. On a PC with other COM devices,
+plug the first badge in *after* starting the command so it is detected as the
+newly-appearing port.
+
 ## REPL access (terminal, to see debug output)
 
 ```bash

@@ -65,6 +65,10 @@ Two layers are installed separately — full details in
 
 Or both in one pass: `python flash.py --firmware --deploy`.
 
+You will never need to update the MicroPython firmware to use the badge as intended;
+you would only need to do that for your own badge hacking projects. So usually only
+the second step is needed.
+
 ### Patterns & palettes
 
 **Patterns** (`src/patterns.py`):
@@ -91,6 +95,7 @@ appending to `PALETTES` in `src/patterns.py`.
 ## Prerequisites
 
 ### Host machine (your PC)
+Install Python 3.11 or higher. Download the code and run:
 ```
 pip install -r requirements.txt
 ```
@@ -113,66 +118,43 @@ newest file there wins), or pass its path explicitly with `--firmware PATH`.
 
 ## Flashing
 
-### 1. Find your serial port
+### 1. Get files
 
-**Windows**: Open Device Manager → Ports (COM & LPT). Look for:
-- `USB Serial Device (COMx)` — built-in USB CDC on ESP32-C3
-- `CH340 / CH343 (COMx)` — external USB-serial bridge
+Download the code from this site (either using "Download ZIP" under the code dropdown on
+this page, or just git cloning the repo. Make sure Python 3.11 or higher is installed,
+and python and pip are on your path. CD into the repo folder.
 
-**Linux**: `ls /dev/ttyACM*` or `ls /dev/ttyUSB*`
+### 2. Flash MicroPython
 
-**macOS**: `ls /dev/tty.usbmodem*`
+This is not normally needed, but if desired for your own badge hacking projects, you
+can update the base image and operating system.
 
-> **Tip:** With the rev2 version of the firmware, `flash.py` auto-detects the port when exactly one 
-> serial device is present, so you can usually drop `--port` (e.g. `python flash.py --deploy`).
-> Specify `--port` only when several devices are connected. (The `make` targets
-> still require `PORT=...`.)
-
-### 2. Put the ESP32-C3 in download mode (if needed)
-
-Hold the BOOT button (below the microcontroller on the left side) while pressing RESET (to the left of the microcontroller), then release RESET. This is actually optional now, the rev2 version of flash.py will force the badge into download mode.
-
-### 3. Flash MicroPython
-
-Using `make` (requires GNU Make — available in Git Bash, WSL, or Chocolatey):
-```bash
-make flash PORT=COM3                    # FIRMWARE defaults to auto-select/download
-make flash PORT=COM3 FIRMWARE=path.bin  # or explicit
-```
-
-Using Python directly (cross-platform):
+Using Python (cross-platform):
 ```bash
 python flash.py --firmware              # auto: newest firmware/*.bin, or download
 python flash.py --firmware path/to.bin  # or explicit
 ```
 
-### 4. Deploy source files
+### 3. Deploy the badge application
 
-```bash
-make deploy PORT=COM3
-```
-or
 ```bash
 python flash.py --deploy
 ```
 
-### 5. Flash + deploy in one step
+### 4. Flash + deploy in one step
 
-```bash
-make all PORT=COM3      # FIRMWARE defaults to auto-select/download
-```
-or directly:
 ```bash
 python flash.py --firmware --deploy
 ```
 
 Writing firmware hard-resets the board, so `flash.py` waits for MicroPython to
 reboot — re-detecting the serial port, which can change on re-enumeration —
-before deploying. No manual RESET press is usually needed.
+before deploying. No manual RESET press is usually needed, but if it hangs, just press
+RESET.
 
 ---
 
-## REPL access
+## REPL access (terminal, to see debug output)
 
 ```bash
 mpremote connect COM3

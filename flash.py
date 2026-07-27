@@ -74,7 +74,7 @@ def erase(port: str, baud: int) -> None:
         "--chip", CHIP,
         "--port", port,
         "--baud", str(baud),
-        "erase-flash",
+        "erase_flash",
     ])
 
 
@@ -85,7 +85,7 @@ def flash_firmware(port: str, baud: int, firmware_path: str) -> None:
         "--chip", CHIP,
         "--port", port,
         "--baud", str(baud),
-        "write-flash",
+        "write_flash",
         "-z", FLASH_ADDR,
         firmware_path,
     ])

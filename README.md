@@ -1,6 +1,6 @@
-# Gothcon 2026 Badge MicroPython Firmware
+# Gothcon 2026 Badge
 
-MicroPython firmware for an ESP32-C3 with:
+MicroPython firmware for an ESP32-C3 convention badge with:
 - Four interrupt-driven directional pushbuttons (Up/Down/Left/Right, S4–S7)
 - 44 WS2812B (NeoPixel) addressable RGB LEDs on IO10 — including two "bat eye"
   LEDs (indices **28** and **30**) driven independently of the animated body

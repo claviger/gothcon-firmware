@@ -8,6 +8,13 @@ MicroPython firmware for an ESP32-C3 convention badge with:
 - A wireless **contagion** effect (ESP-NOW): tap Down and nearby badges adopt
   your pattern + palette, cascading a few hops through the room
 
+<a href="https://imgur.com/a/gothcon-2026-badges-79vPE7C"><img src="https://i.imgur.com/kyJHf74.jpeg" alt="The Gothcon 2026 bat badge" width="480"></a>
+
+**See it in action:**
+[video 1](https://imgur.com/qmLkWM7) ·
+[video 2](https://imgur.com/OPmR4Vh) —
+or the full [photo album](https://imgur.com/a/gothcon-2026-badges-79vPE7C).
+
 ---
 
 ## Hardware

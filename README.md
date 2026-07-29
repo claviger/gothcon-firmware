@@ -163,7 +163,8 @@ is reported and skipped (unplug, check it, re-plug to retry), and **Ctrl+C**
 ends the session. Firmware is resolved once up front (auto-download included),
 so later badges never wait on the network. On a PC with other COM devices,
 plug the first badge in *after* starting the command so it is detected as the
-newly-appearing port.
+newly-appearing port. It is admittedly unlikely anyone but me will ever use
+this command, since no one else has a pile of hundreds of badges.
 
 ## REPL access (terminal, to see debug output)
 

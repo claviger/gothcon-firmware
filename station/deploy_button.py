@@ -4,14 +4,15 @@
 Runs on the Raspberry Pi provisioning station (Pi 2 + Adafruit 2.8"
 capacitive PiTFT, console on the TFT). Plug a badge in, press a button:
 
-    button 1  (GPIO 18)  ->  python flash.py --deploy
+    button 1  (GPIO 23)  ->  python flash.py --deploy
     button 2  (GPIO 22)  ->  python flash.py --firmware --deploy
     button 3  (GPIO 27)  ->  hold 2s: sudo poweroff (safe shutdown)
-    button 4  (GPIO 23)  ->  (spare)
+    button 4  (GPIO 18)  ->  (spare)
 
-Wiring differs by board generation: the ORIGINAL 2.8" PiTFT (product 1601,
-this station's board) wires its switches to GPIO 18/22/27/23 (21 instead of
-27 on the very oldest revision); the later "Plus" boards use 17/22/23/27.
+Wiring verified with --identify on the station's board, the ORIGINAL 2.8"
+PiTFT (product 1601): buttons are GPIO 23/22/27/18 left-to-right (the very
+oldest board revision used 21 instead of 27); later "Plus" boards use
+17/22/23/27.
 
 Not sure which GPIO a physical button is? Run:
 
@@ -31,11 +32,11 @@ from pathlib import Path
 
 from gpiozero import Button
 
-# --- button map (see module docstring; verify with --identify) ---------------
-BTN_DEPLOY     = 18   # button 1: deploy src/ to the badge (the common case)
+# --- button map (verified with --identify on the 1601 board) -----------------
+BTN_DEPLOY     = 23   # button 1: deploy src/ to the badge (the common case)
 BTN_FULL_FLASH = 22   # button 2: erase + MicroPython + deploy (unknown badges)
 BTN_SHUTDOWN   = 27   # button 3: hold 2s to power the station off
-BTN_SPARE      = 23   # button 4: unmapped
+BTN_SPARE      = 18   # button 4: unmapped
 
 SHUTDOWN_HOLD_S = 2
 

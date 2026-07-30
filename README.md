@@ -182,10 +182,10 @@ and watch the output on the TFT console.
 
 | Button | GPIO | Action |
 |---|---|---|
-| 1 | 18 | `flash.py --deploy` — update the badge app (fast, the common case) |
+| 1 | 23 | `flash.py --deploy` — update the badge app (fast, the common case) |
 | 2 | 22 | `flash.py --firmware --deploy` — full reflash for unknown-state badges |
 | 3 | 27 | hold 2 s: safe shutdown of the Pi |
-| 4 | 23 | spare |
+| 4 | 18 | spare |
 
 (GPIOs are for the **original** 2.8" PiTFT, product 1601; the later "Plus"
 boards wire their buttons to 17/22/23/27 instead. Unsure which GPIO a

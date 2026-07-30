@@ -173,6 +173,45 @@ plug the first badge in *after* starting the command so it is detected as the
 newly-appearing port. It is admittedly unlikely anyone but me will ever use
 this command, since no one else has a pile of hundreds of badges.
 
+### Flashing station (Raspberry Pi + PiTFT)
+
+`station/deploy_button.py` turns a battery-powered Raspberry Pi with an
+Adafruit 2.8" capacitive PiTFT into a portable, laptop-free badge flasher:
+plug a badge into the Pi's USB, press a tactile button on the screen bezel,
+and watch the output on the TFT console.
+
+| Button (position) | GPIO | Action |
+|---|---|---|
+| top | 17 | `flash.py --deploy` — update the badge app (fast, the common case) |
+| second | 22 | `flash.py --firmware --deploy` — full reflash for unknown-state badges |
+| third | 23 | spare |
+| bottom | 27 | hold 2 s: safe shutdown of the Pi |
+
+Presses during a running job are ignored; each job ends with a big
+SUCCESS/FAILED banner and returns to READY. (For provisioning a large pile of
+badges in one sitting, `flash.py --continuous` above is still the faster,
+zero-button workflow.)
+
+**Station setup** (Raspberry Pi OS, 32-bit on a Pi 2):
+
+1. Enable the PiTFT — in `/boot/firmware/config.txt`:
+   `dtparam=spi=on`, `dtparam=i2c1=on`,
+   `dtoverlay=pitft28-capacitive,rotate=90,speed=64000000,fps=30`;
+   and append `fbcon=map:10` to `/boot/firmware/cmdline.txt` to put the text
+   console on the TFT.
+2. `git clone` this repo, create a venv, `pip install -r requirements.txt`,
+   and run `python flash.py --firmware` once while online to pre-seed
+   `firmware/`.
+3. Enable console auto-login (`raspi-config` → Boot → Console Autologin) and
+   launch the station from `~/.bash_profile`:
+
+   ```bash
+   if [ "$(tty)" = "/dev/tty1" ]; then
+     cd ~/gothcon-firmware && source .venv/bin/activate
+     while true; do python station/deploy_button.py; sleep 2; done
+   fi
+   ```
+
 ## REPL access (terminal, to see debug output)
 
 ```bash

@@ -199,8 +199,18 @@ zero-button workflow.)
    `dtoverlay=pitft28-capacitive,rotate=90,speed=64000000,fps=30`;
    and append `fbcon=map:10` to `/boot/firmware/cmdline.txt` to put the text
    console on the TFT.
-2. `git clone` this repo, create a venv, `pip install -r requirements.txt`,
-   and run `python flash.py --firmware` once while online to pre-seed
+2. `git clone` this repo, then create the venv **with system-site-packages**
+   (the station script needs the OS-packaged `gpiozero`/`lgpio`, which a
+   plain venv cannot see):
+
+   ```bash
+   sudo apt install -y python3-gpiozero python3-lgpio   # usually preinstalled
+   python3 -m venv --system-site-packages .venv
+   source .venv/bin/activate
+   pip install -r requirements.txt
+   ```
+
+   Then run `python flash.py --firmware` once while online to pre-seed
    `firmware/`.
 3. Enable console auto-login (`raspi-config` → Boot → Console Autologin) and
    launch the station from `~/.bash_profile`:

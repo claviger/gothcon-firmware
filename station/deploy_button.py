@@ -4,16 +4,21 @@
 Runs on the Raspberry Pi provisioning station (Pi 2 + Adafruit 2.8"
 capacitive PiTFT, console on the TFT). Plug a badge in, press a button:
 
-    button 1  (GPIO 23)  ->  python flash.py --deploy
+    button 1  (GPIO 18)  ->  python flash.py --deploy
     button 2  (GPIO 22)  ->  python flash.py --firmware --deploy
     button 3  (GPIO 27)  ->  hold 2s: sudo poweroff (safe shutdown)
-    button 4  (GPIO 18)  ->  (spare; on this board GPIO18 doubles as the
-                              backlight jumper, so it's left unmapped)
+    button 4  (GPIO 23)  ->  (spare)
 
-Wiring differs by board generation: the ORIGINAL 2.8" PiTFT (this station's
-board) wires its switches to GPIO 23/22/27(21 on the oldest revs)/18; the
-later "Plus" boards use GPIO 17/22/23/27. If a button lands wrong, edit the
-constants below — the startup banner prints the live mapping.
+Wiring differs by board generation: the ORIGINAL 2.8" PiTFT (product 1601,
+this station's board) wires its switches to GPIO 18/22/27/23 (21 instead of
+27 on the very oldest revision); the later "Plus" boards use 17/22/23/27.
+
+Not sure which GPIO a physical button is? Run:
+
+    python station/deploy_button.py --identify
+
+then press each button — it prints the GPIO that fired. Edit the constants
+below to match; the startup banner always prints the live mapping.
 
 Pi-only: requires gpiozero (preinstalled on Raspberry Pi OS). Not part of
 the firmware test suite. Ctrl+C exits.
@@ -26,11 +31,11 @@ from pathlib import Path
 
 from gpiozero import Button
 
-# --- button map (see module docstring) --------------------------------------
-BTN_DEPLOY     = 23   # button 1: deploy src/ to the badge (the common case)
+# --- button map (see module docstring; verify with --identify) ---------------
+BTN_DEPLOY     = 18   # button 1: deploy src/ to the badge (the common case)
 BTN_FULL_FLASH = 22   # button 2: erase + MicroPython + deploy (unknown badges)
 BTN_SHUTDOWN   = 27   # button 3: hold 2s to power the station off
-BTN_SPARE      = 18   # button 4: unmapped (backlight jumper pin on this board)
+BTN_SPARE      = 23   # button 4: unmapped
 
 SHUTDOWN_HOLD_S = 2
 
@@ -57,6 +62,30 @@ def _run_flash(*args) -> None:
     else:
         print(f"\n*** FAILED (exit {result.returncode}) — check the badge, "
               "then press again ***", file=sys.stderr, flush=True)
+
+
+def identify() -> None:
+    """Listen on every plausible PiTFT button GPIO and print which one fires.
+
+    Covers both board generations (original: 18/22/27/23, oldest rev 21;
+    Plus: 17/22/23/27). GPIOs already claimed by the display overlay are
+    skipped with a note.
+    """
+    import time
+
+    candidates = (17, 18, 21, 22, 23, 27)
+    held = []
+    print("Identify mode — press each button in turn; Ctrl+C to quit.")
+    for pin in candidates:
+        try:
+            b = Button(pin, pull_up=True, bounce_time=0.05)
+        except Exception as exc:
+            print(f"  GPIO {pin}: unavailable ({exc})")
+            continue
+        b.when_pressed = (lambda p: lambda: print(f"  >>> GPIO {p} pressed"))(pin)
+        held.append(b)                      # keep references alive
+    while True:
+        time.sleep(1)
 
 
 def main() -> None:
@@ -96,6 +125,9 @@ def main() -> None:
 
 if __name__ == "__main__":
     try:
-        main()
+        if "--identify" in sys.argv:
+            identify()
+        else:
+            main()
     except KeyboardInterrupt:
         print("\nbye")

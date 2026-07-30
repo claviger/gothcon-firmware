@@ -182,14 +182,15 @@ and watch the output on the TFT console.
 
 | Button | GPIO | Action |
 |---|---|---|
-| 1 | 23 | `flash.py --deploy` — update the badge app (fast, the common case) |
+| 1 | 18 | `flash.py --deploy` — update the badge app (fast, the common case) |
 | 2 | 22 | `flash.py --firmware --deploy` — full reflash for unknown-state badges |
 | 3 | 27 | hold 2 s: safe shutdown of the Pi |
-| 4 | 18 | spare (doubles as the backlight jumper pin on the original PiTFT) |
+| 4 | 23 | spare |
 
-(GPIOs are for the **original** 2.8" capacitive PiTFT; the later "Plus"
-boards wire their buttons to 17/22/23/27 instead — adjust the constants at
-the top of `station/deploy_button.py` to match your board.)
+(GPIOs are for the **original** 2.8" PiTFT, product 1601; the later "Plus"
+boards wire their buttons to 17/22/23/27 instead. Unsure which GPIO a
+physical button is? Run `python station/deploy_button.py --identify`, press
+each button, and adjust the constants at the top of the script to match.)
 
 Presses during a running job are ignored; each job ends with a big
 SUCCESS/FAILED banner and returns to READY. (For provisioning a large pile of
@@ -199,19 +200,20 @@ zero-button workflow.)
 **Station setup** (Raspberry Pi OS, 32-bit on a Pi 2):
 
 1. Enable the PiTFT — in `/boot/firmware/config.txt`:
-   `dtparam=spi=on`, `dtparam=i2c1=on`,
-   `dtoverlay=pitft28-capacitive,rotate=90,speed=64000000,fps=30`;
-   and append `fbcon=map:10` to `/boot/firmware/cmdline.txt` to put the text
-   console on the TFT.
+   `dtparam=spi=on`, `dtparam=i2c1=on`, and the overlay matching your board —
+   `dtoverlay=pitft28-resistive,rotate=90,speed=64000000,fps=30` for the
+   original (1601) or `dtoverlay=pitft28-capacitive,...` for the capacitive
+   models; then append `fbcon=map:10` to `/boot/firmware/cmdline.txt` to put
+   the text console on the TFT.
 2. `git clone` this repo, then create the venv **with system-site-packages**
    (the station script needs the OS-packaged `gpiozero`/`lgpio`, which a
    plain venv cannot see):
 
    ```bash
-   sudo apt install -y python3-gpiozero python3-lgpio   # usually preinstalled
+   sudo apt install -y python3-venv python3-gpiozero python3-lgpio
    python3 -m venv --system-site-packages .venv
-   source .venv/bin/activate
-   pip install -r requirements.txt
+   source .venv/bin/activate       # if activate is missing, python3-venv was
+   pip install -r requirements.txt #   absent — rm -rf .venv and redo
    ```
 
    Then run `python flash.py --firmware` once while online to pre-seed

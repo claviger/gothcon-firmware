@@ -4,14 +4,16 @@
 Runs on the Raspberry Pi provisioning station (Pi 2 + Adafruit 2.8"
 capacitive PiTFT, console on the TFT). Plug a badge in, press a button:
 
-    top button     (GPIO 17)  ->  python flash.py --deploy
-    second button  (GPIO 22)  ->  python flash.py --firmware --deploy
-    third button   (GPIO 23)  ->  (spare, unmapped)
-    bottom button  (GPIO 27)  ->  hold 2s: sudo poweroff (safe shutdown)
+    button 1  (GPIO 23)  ->  python flash.py --deploy
+    button 2  (GPIO 22)  ->  python flash.py --firmware --deploy
+    button 3  (GPIO 27)  ->  hold 2s: sudo poweroff (safe shutdown)
+    button 4  (GPIO 18)  ->  (spare; on this board GPIO18 doubles as the
+                              backlight jumper, so it's left unmapped)
 
-The PiTFT's four switches are wired active-low to GPIO 17/22/23/27. If your
-board's physical order differs, just edit the constants below — the startup
-banner prints the live mapping.
+Wiring differs by board generation: the ORIGINAL 2.8" PiTFT (this station's
+board) wires its switches to GPIO 23/22/27(21 on the oldest revs)/18; the
+later "Plus" boards use GPIO 17/22/23/27. If a button lands wrong, edit the
+constants below — the startup banner prints the live mapping.
 
 Pi-only: requires gpiozero (preinstalled on Raspberry Pi OS). Not part of
 the firmware test suite. Ctrl+C exits.
@@ -25,10 +27,10 @@ from pathlib import Path
 from gpiozero import Button
 
 # --- button map (see module docstring) --------------------------------------
-BTN_DEPLOY     = 17   # top:    deploy src/ to the badge (the common case)
-BTN_FULL_FLASH = 22   # second: erase + MicroPython + deploy (unknown badges)
-BTN_SPARE      = 23   # third:  unmapped
-BTN_SHUTDOWN   = 27   # bottom: hold 2s to power the station off
+BTN_DEPLOY     = 23   # button 1: deploy src/ to the badge (the common case)
+BTN_FULL_FLASH = 22   # button 2: erase + MicroPython + deploy (unknown badges)
+BTN_SHUTDOWN   = 27   # button 3: hold 2s to power the station off
+BTN_SPARE      = 18   # button 4: unmapped (backlight jumper pin on this board)
 
 SHUTDOWN_HOLD_S = 2
 
@@ -72,9 +74,9 @@ def main() -> None:
 
     print("=" * 40)
     print("Badge flashing station")
-    print(f"  GPIO {BTN_DEPLOY} (top):    deploy badge app")
-    print(f"  GPIO {BTN_FULL_FLASH} (2nd):    full flash + deploy")
-    print(f"  GPIO {BTN_SHUTDOWN} (bottom): hold {SHUTDOWN_HOLD_S}s = shutdown")
+    print(f"  button 1 (GPIO {BTN_DEPLOY}): deploy badge app")
+    print(f"  button 2 (GPIO {BTN_FULL_FLASH}): full flash + deploy")
+    print(f"  button 3 (GPIO {BTN_SHUTDOWN}): hold {SHUTDOWN_HOLD_S}s = shutdown")
     print("=" * 40)
 
     while True:

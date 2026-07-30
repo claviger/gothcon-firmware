@@ -180,12 +180,16 @@ Adafruit 2.8" capacitive PiTFT into a portable, laptop-free badge flasher:
 plug a badge into the Pi's USB, press a tactile button on the screen bezel,
 and watch the output on the TFT console.
 
-| Button (position) | GPIO | Action |
+| Button | GPIO | Action |
 |---|---|---|
-| top | 17 | `flash.py --deploy` — update the badge app (fast, the common case) |
-| second | 22 | `flash.py --firmware --deploy` — full reflash for unknown-state badges |
-| third | 23 | spare |
-| bottom | 27 | hold 2 s: safe shutdown of the Pi |
+| 1 | 23 | `flash.py --deploy` — update the badge app (fast, the common case) |
+| 2 | 22 | `flash.py --firmware --deploy` — full reflash for unknown-state badges |
+| 3 | 27 | hold 2 s: safe shutdown of the Pi |
+| 4 | 18 | spare (doubles as the backlight jumper pin on the original PiTFT) |
+
+(GPIOs are for the **original** 2.8" capacitive PiTFT; the later "Plus"
+boards wire their buttons to 17/22/23/27 instead — adjust the constants at
+the top of `station/deploy_button.py` to match your board.)
 
 Presses during a running job are ignored; each job ends with a big
 SUCCESS/FAILED banner and returns to READY. (For provisioning a large pile of

@@ -146,6 +146,26 @@ class TestResolvePort(unittest.TestCase):
             flash.resolve_port(None, ["COM3", "COM4"])
 
 
+class TestAvailablePorts(unittest.TestCase):
+    """Only USB-backed serial devices count — platform UARTs like the
+    Raspberry Pi's always-present /dev/ttyAMA0 must not appear as badges."""
+
+    class _Port:
+        def __init__(self, device, vid):
+            self.device = device
+            self.vid = vid
+
+    def test_filters_out_non_usb_platform_uarts(self):
+        fake = [self._Port("/dev/ttyAMA0", None),        # Pi on-board UART
+                self._Port("/dev/ttyACM0", 0x303A)]      # badge (Espressif)
+        got = flash.available_ports(comports=lambda: fake)
+        self.assertEqual(got, ["/dev/ttyACM0"])
+
+    def test_empty_when_only_platform_uarts_exist(self):
+        fake = [self._Port("/dev/ttyAMA0", None)]
+        self.assertEqual(flash.available_ports(comports=lambda: fake), [])
+
+
 class TestContinuousWaits(unittest.TestCase):
     """Port-watching primitives for --continuous batch flashing."""
 

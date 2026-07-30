@@ -34,10 +34,19 @@ READY_TIMEOUT_S  = 30
 PROBE_INTERVAL_S = 0.5
 
 
-def available_ports() -> list:
-    """Serial port device names present on the system (via pyserial)."""
-    from serial.tools import list_ports
-    return sorted(p.device for p in list_ports.comports())
+def available_ports(comports=None) -> list:
+    """USB-backed serial port device names present on the system.
+
+    Ports without a USB vendor id are platform UARTs (e.g. the Raspberry
+    Pi's always-present /dev/ttyAMA0) — never a badge, which enumerates as
+    USB CDC — so they are excluded rather than tripping the "multiple
+    ports" ambiguity check.
+    """
+    if comports is None:
+        from serial.tools import list_ports
+        comports = list_ports.comports
+    return sorted(p.device for p in comports()
+                  if getattr(p, "vid", None) is not None)
 
 
 def resolve_port(explicit, available) -> str:
